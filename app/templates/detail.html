@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Pengajuan #{{ p.id }} — DSS Bansos{% endblock %}
+{% block content %}
+<a href="/daftar" class="small text-decoration-none">&larr; Kembali ke daftar</a>
+<div class="d-flex justify-content-between align-items-center mb-3 mt-1">
+  <h1 class="h3 mb-0">Pengajuan #{{ p.id }}</h1>
+  {% include "partials/_status_badge.html" %}
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Data Warga</div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5">Nama</dt><dd class="col-7">{{ p.warga.nama }}</dd>
+          <dt class="col-5">NIK</dt><dd class="col-7">{{ p.warga.nik }}</dd>
+          <dt class="col-5">Usia</dt><dd class="col-7">{{ p.warga.usia }} tahun</dd>
+          <dt class="col-5">Jenis Kelamin</dt><dd class="col-7">{{ 'Laki-laki' if p.warga.jenis_kelamin == 'L' else 'Perempuan' }}</dd>
+          <dt class="col-5">Status Pernikahan</dt><dd class="col-7">{{ p.warga.status_pernikahan }}</dd>
+          <dt class="col-5">Jumlah Tanggungan</dt><dd class="col-7">{{ p.warga.jumlah_tanggungan }}</dd>
+          <dt class="col-5">Alamat</dt><dd class="col-7">{{ p.warga.alamat or '-' }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">Data Survei</div>
+      <div class="card-body">
+        {% if p.data_survei %}
+        <dl class="row mb-0 small">
+          <dt class="col-5">Pendapatan/kapita</dt><dd class="col-7">{{ p.data_survei.pendapatan | rupiah }}</dd>
+          <dt class="col-5">Status Pekerjaan</dt><dd class="col-7">{{ p.data_survei.status_pekerjaan or '-' }}</dd>
+          <dt class="col-5">Aset Produktif</dt><dd class="col-7">{{ 'Ya' if p.data_survei.aset_produktif else 'Tidak' }}</dd>
+          <dt class="col-5">Riwayat Bantuan</dt><dd class="col-7">{{ 'Pernah' if p.data_survei.riwayat_bantuan else 'Belum' }}</dd>
+          <dt class="col-5">Luas Rumah</dt><dd class="col-7">{{ (p.data_survei.luas_rumah | int ~ ' m²') if p.data_survei.luas_rumah else '-' }}</dd>
+          <dt class="col-5">Jenis Lantai</dt><dd class="col-7">{{ p.data_survei.jenis_lantai or '-' }}</dd>
+          <dt class="col-5">Jenis Dinding</dt><dd class="col-7">{{ p.data_survei.jenis_dinding or '-' }}</dd>
+          <dt class="col-5">Sumber Air</dt><dd class="col-7">{{ p.data_survei.sumber_air or '-' }}</dd>
+        </dl>
+        {% else %}<span class="text-muted small">Data survei belum diisi.</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Teks Naratif</div>
+      <div class="card-body">
+        {% for t in p.teks_naratif %}
+        <div class="mb-2">
+          <span class="badge text-bg-light">{{ t.sumber }}</span>
+          {{ t.isi_teks }}
+        </div>
+        {% else %}<span class="text-muted small">Tidak ada narasi.</span>{% endfor %}
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Hasil Analisis</span>
+        <button class="btn btn-sm btn-primary"
+                hx-post="/detail/{{ p.id }}/analisis"
+                hx-target="#hasil-box" hx-swap="innerHTML" hx-indicator="#spin">
+          <span id="spin" class="htmx-indicator spinner-border spinner-border-sm"></span>
+          <i class="bi bi-cpu"></i> Jalankan Analisis
+        </button>
+      </div>
+      <div class="card-body" id="hasil-box">
+        {% include "partials/_hasil.html" %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

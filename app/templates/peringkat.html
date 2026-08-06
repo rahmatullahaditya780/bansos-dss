@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Peringkat Prioritas — DSS Bansos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h1 class="h3 mb-0">Peringkat Prioritas</h1>
+  <button class="btn btn-primary"
+          hx-post="/peringkat/run" hx-target="#rank-box" hx-swap="innerHTML" hx-indicator="#spin2">
+    <span id="spin2" class="htmx-indicator spinner-border spinner-border-sm"></span>
+    <i class="bi bi-arrow-repeat"></i> Jalankan Perangkingan
+  </button>
+</div>
+<p class="text-muted small">
+  Fuzzy TOPSIS (Tier 3). Hanya pengajuan yang diprediksi <strong>layak</strong> oleh Tier 2 yang dirangking (OI-15).
+  <em>Fase 0: memakai TOPSIS crisp sebagai stub; bobot provisional dari <code>config/fuzzy_config.yaml</code>.</em>
+</p>
+<div class="card">
+  <div class="card-body" id="rank-box">
+    <div class="text-muted">Klik <strong>Jalankan Perangkingan</strong> untuk membuat batch ranking terbaru.</div>
+  </div>
+</div>
+{% endblock %}

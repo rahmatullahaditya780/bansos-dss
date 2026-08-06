@@ -1,0 +1,28 @@
+{% if hasil.ranking %}
+<div class="mb-2 small text-muted">
+  Batch <code>{{ hasil.batch_id }}</code> · {{ hasil.jumlah_alternatif }} alternatif (pengajuan layak)
+</div>
+<div class="table-responsive">
+  <table class="table table-striped mb-0">
+    <thead>
+      <tr><th>#</th><th>Pengajuan</th><th>Warga</th><th>Nilai Preferensi</th><th>Skor Urgensi</th></tr>
+    </thead>
+    <tbody>
+      {% for it in hasil.ranking %}
+      <tr>
+        <td><span class="badge text-bg-success">{{ it.peringkat }}</span></td>
+        <td><a href="/detail/{{ it.pengajuan_id }}" class="text-decoration-none">#{{ it.pengajuan_id }}</a></td>
+        <td>{{ it.warga_nama }}</td>
+        <td>{{ it.nilai_preferensi | skor }}</td>
+        <td>{{ it.skor_urgensi | skor }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-warning mb-0">
+  Tidak ada pengajuan berstatus <strong>layak</strong> untuk dirangking.
+  Analisis beberapa pengajuan terlebih dahulu (Tier 3 hanya merangking yang lolos ML — OI-15).
+</div>
+{% endif %}

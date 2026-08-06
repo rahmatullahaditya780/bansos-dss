@@ -1,0 +1,4 @@
+{% if p.status == 'baru' %}<span class="badge text-bg-secondary">Baru</span>
+{% elif p.status == 'dianalisis' %}<span class="badge text-bg-info">Dianalisis</span>
+{% elif p.status == 'diverifikasi' %}<span class="badge text-bg-success">Diverifikasi</span>
+{% else %}<span class="badge text-bg-light">{{ p.status }}</span>{% endif %}

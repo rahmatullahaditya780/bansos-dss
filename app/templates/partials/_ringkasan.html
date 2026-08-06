@@ -1,0 +1,48 @@
+<div class="row g-3">
+  <div class="col-6 col-md-3">
+    <div class="card stat stat-accent"><div class="card-body">
+      <div class="stat-label">Total Pengajuan</div><div class="stat-value">{{ r.total_pengajuan }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat"><div class="card-body">
+      <div class="stat-label">Baru</div><div class="stat-value">{{ r.baru }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat"><div class="card-body">
+      <div class="stat-label">Dianalisis</div><div class="stat-value">{{ r.dianalisis }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat"><div class="card-body">
+      <div class="stat-label">Diverifikasi</div><div class="stat-value">{{ r.diverifikasi }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat"><div class="card-body">
+      <div class="stat-label">Prediksi Layak</div><div class="stat-value text-success">{{ r.layak }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat"><div class="card-body">
+      <div class="stat-label">Tidak Layak</div><div class="stat-value text-danger">{{ r.tidak_layak }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat"><div class="card-body">
+      <div class="stat-label">Rata Durasi</div><div class="stat-value">{{ (r.rata_durasi_ms | int) if r.rata_durasi_ms is not none else '-' }}<small class="fs-6"> ms</small></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat"><div class="card-body">
+      <div class="stat-label">Permintaan &le;5s</div><div class="stat-value">{{ r.persen_le_5s | persen }}</div>
+    </div></div>
+  </div>
+</div>
+{% if r.efektivitas_persen is not none %}
+<div class="mt-3 small text-muted">
+  Efektivitas terhadap verifikasi manual: <strong>{{ r.efektivitas_persen | persen }}</strong>
+  (target &ge;85%).
+</div>
+{% endif %}

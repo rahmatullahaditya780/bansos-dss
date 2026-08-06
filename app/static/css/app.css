@@ -1,0 +1,55 @@
+:root {
+  --brand: #1f6f54;
+  --brand-dark: #17553f;
+  --ink: #1f2933;
+}
+
+body {
+  background: #f4f6f8;
+  color: var(--ink);
+}
+
+.app-navbar {
+  background: linear-gradient(90deg, var(--brand), var(--brand-dark));
+}
+.app-navbar .navbar-brand,
+.app-navbar .nav-link,
+.app-navbar .navbar-text { color: #fff; }
+.app-navbar .nav-link:hover { color: #d9f2e8; }
+
+.card {
+  border: 1px solid #e6eaee;
+  border-radius: .6rem;
+}
+.card-header {
+  background: #fff;
+  font-weight: 600;
+  border-bottom: 1px solid #eef1f4;
+}
+
+/* Kartu statistik dashboard */
+.stat .card-body { padding: 1rem 1.1rem; }
+.stat-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: #7a8794; }
+.stat-value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+.stat-accent { border-left: 4px solid var(--brand); }
+
+/* Metrik hasil analisis */
+.metric {
+  background: #f8fafb;
+  border: 1px solid #eef1f4;
+  border-radius: .5rem;
+  padding: .75rem .9rem;
+  height: 100%;
+}
+.metric-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: #7a8794; }
+.metric-value { font-size: 1.3rem; font-weight: 700; }
+
+.btn-primary { background: var(--brand); border-color: var(--brand); }
+.btn-primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+
+.htmx-indicator { display: none; }
+.htmx-request .htmx-indicator { display: inline-block; }
+.htmx-request.htmx-indicator { display: inline-block; }
+
+.table > :not(caption) > * > * { vertical-align: middle; }
+code { color: var(--brand-dark); }

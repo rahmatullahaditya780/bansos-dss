@@ -1,0 +1,2 @@
+# Driver PostgreSQL — dipakai di jalur Docker/produksi. Dev lokal memakai SQLite tanpa ini.
+psycopg2-binary>=2.9

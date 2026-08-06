@@ -1,0 +1,25 @@
+# Konfigurasi Fuzzy TOPSIS — PROVISIONAL (OI-12 / OI-13).
+# Nilai final WAJIB disepakati dengan pihak Kelurahan Bontoramba sebelum run data nyata (Fase 6).
+# Dapat diubah tanpa menyentuh kode (NFR-06, FR-19).
+versi: provisional-0
+
+# Bobot kriteria (jumlah ~1.0). Semakin besar = semakin berpengaruh ke prioritas.
+bobot:
+  pendapatan: 0.35
+  jumlah_tanggungan: 0.20
+  housing_need: 0.20
+  skor_urgensi: 0.25
+
+# Arah kriteria TOPSIS: cost (kecil lebih baik) / benefit (besar lebih baik).
+arah:
+  pendapatan: cost
+  jumlah_tanggungan: benefit
+  housing_need: benefit
+  skor_urgensi: benefit
+
+# Ambang kategori pendapatan per kapita per bulan (Rupiah) — untuk penjelasan & fuzzifikasi.
+# PROVISIONAL — sesuaikan dengan garis kemiskinan setempat.
+pendapatan_kategori:
+  sangat_rendah: 500000
+  rendah: 1000000
+  sedang: 2000000

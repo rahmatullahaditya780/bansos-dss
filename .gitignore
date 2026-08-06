@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Env & rahasia
+.env
+!.env.example
+
+# Database dev lokal
+*.db
+*.sqlite3
+
+# Artefak model (berkas besar — simpan di luar git / LFS)
+ml/artifacts/*
+!ml/artifacts/.gitkeep
+
+# Data lokal (BERPOTENSI PII — jangan pernah commit data warga nyata)
+data/local/
+data/synthetic/*.csv
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Log
+*.log

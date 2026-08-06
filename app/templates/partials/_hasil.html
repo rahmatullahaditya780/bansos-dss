@@ -1,0 +1,41 @@
+{% if hasil.prediksi_ml %}
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="metric">
+      <div class="metric-label">Skor Urgensi · Tier 1</div>
+      <div class="metric-value">{{ hasil.skor_urgensi | skor }}</div>
+      <div class="small text-muted">0–1 (probabilitas urgensi tinggi)</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="metric">
+      <div class="metric-label">Kelayakan · Tier 2</div>
+      <div class="metric-value">
+        {% if hasil.prediksi_ml.hasil == 'layak' %}<span class="text-success">LAYAK</span>
+        {% else %}<span class="text-danger">TIDAK LAYAK</span>{% endif %}
+      </div>
+      <div class="small text-muted">prob {{ hasil.prediksi_ml.probabilitas | skor }} · {{ hasil.prediksi_ml.versi_model }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="metric">
+      <div class="metric-label">Prioritas · Tier 3</div>
+      <div class="metric-value">
+        {% if hasil.topsis %}#{{ hasil.topsis.peringkat }}{% else %}<span class="text-muted">-</span>{% endif %}
+      </div>
+      <div class="small text-muted">
+        {% if hasil.topsis %}nilai {{ hasil.topsis.nilai_preferensi | skor }} · batch {{ hasil.topsis.batch_id }}
+        {% else %}jalankan perangkingan di menu Peringkat{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<div class="alert alert-light border mt-3 mb-0">
+  <i class="bi bi-info-circle text-success"></i> <strong>Alasan:</strong> {{ hasil.alasan }}
+</div>
+{% if hasil.durasi_ms is not none %}
+<div class="small text-muted mt-2"><i class="bi bi-stopwatch"></i> Durasi analisis: {{ hasil.durasi_ms }} ms</div>
+{% endif %}
+{% else %}
+<p class="text-muted mb-0">Belum dianalisis. Klik <strong>Jalankan Analisis</strong> untuk menghitung skor urgensi & prediksi kelayakan.</p>
+{% endif %}
