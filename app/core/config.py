@@ -22,7 +22,8 @@ class Settings(BaseSettings):
 
     # Artefak model (diisi saat Fase 2/3/4)
     indobert_model_path: str = "ml/artifacts/indobert"
-    ml_model_path: str = "ml/artifacts/classifier.joblib"
+    indobert_max_length: int = 128  # panjang token maksimum narasi (Tier 1)
+    ml_model_path: str = "ml/artifacts/tier2"  # direktori artefak Tier 2 (model.joblib + metadata)
     fuzzy_config_path: str = "config/fuzzy_config.yaml"
 
 
