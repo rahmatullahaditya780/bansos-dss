@@ -46,9 +46,10 @@ def analisis_pengajuan(db: Session, pengajuan: models.Pengajuan) -> dict:
     """Jalankan Tier 1 -> Tier 2 untuk satu pengajuan; simpan hasil & catat durasi."""
     waktu_mulai = _now()
 
-    # --- Tier 1: skor urgensi per narasi ---
-    for teks in pengajuan.teks_naratif:
-        out = tier1_nlp.score_urgency(teks.isi_teks)
+    # --- Tier 1: skor urgensi per narasi (satu forward pass untuk semua narasi) ---
+    narasi = list(pengajuan.teks_naratif)
+    skor_tier1 = tier1_nlp.score_urgency_batch([t.isi_teks for t in narasi])
+    for teks, out in zip(narasi, skor_tier1):
         if teks.skor_urgensi is not None:
             db.delete(teks.skor_urgensi)
             db.flush()
