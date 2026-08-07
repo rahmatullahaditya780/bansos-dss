@@ -1,7 +1,10 @@
 # Konfigurasi Fuzzy TOPSIS — PROVISIONAL (OI-12 / OI-13).
 # Nilai final WAJIB disepakati dengan pihak Kelurahan Bontoramba sebelum run data nyata (Fase 6).
 # Dapat diubah tanpa menyentuh kode (NFR-06, FR-19).
-versi: provisional-0
+#
+# `versi` ikut disimpan ke `ranking_topsis.bobot_snapshot` setiap batch, sehingga peringkat lama
+# selalu dapat ditelusuri ke konfigurasi yang menghasilkannya.
+versi: provisional-1
 
 # Bobot kriteria (jumlah ~1.0). Semakin besar = semakin berpengaruh ke prioritas.
 bobot:
@@ -17,9 +20,87 @@ arah:
   housing_need: benefit
   skor_urgensi: benefit
 
-# Ambang kategori pendapatan per kapita per bulan (Rupiah) — untuk penjelasan & fuzzifikasi.
+# Ambang kategori pendapatan per kapita per bulan (Rupiah) — untuk penjelasan ke petugas.
 # PROVISIONAL — sesuaikan dengan garis kemiskinan setempat.
 pendapatan_kategori:
   sangat_rendah: 500000
   rendah: 1000000
   sedang: 2000000
+
+# ---------------------------------------------------------------------------------------------
+# Fungsi keanggotaan per kriteria (OI-13, FR-18)
+# ---------------------------------------------------------------------------------------------
+# `titik` mengikuti konvensi scikit-fuzzy: segitiga = [a, b, c], trapesium = [a, b, c, d].
+# Himpunan HARUS diurutkan menaik menurut nilai kriteria; urutannya menentukan posisi ordinal
+# yang dipakai membentuk bilangan fuzzy segitiga (TFN) pada skala preferensi 0..1.
+#
+# Dua aturan rancangan yang tidak boleh dilanggar saat mengubah nilai di bawah:
+#
+#   1. HIMPUNAN TERLUAR TIDAK BOLEH BERPUNCAK DATAR di dalam rentang data. Puncak datar membuat
+#      seluruh nilai di bawahnya (atau di atasnya) menghasilkan bilangan fuzzy yang identik —
+#      dan seri di garis kuota berarti penerima bantuan ditentukan urutan baris basis data,
+#      bukan oleh metode (evaluasi pra-Fase 4 §5.2). Karena itu himpunan pertama dan terakhir
+#      ditulis sebagai segitiga yang berpuncak PERSIS di ujung `domain`.
+#   2. `domain` harus mencakup seluruh nilai yang mungkin muncul. Nilai di luarnya dijepit,
+#      dan nilai terjepit kehilangan daya bedanya.
+#
+# Fuzzifikasi memakai DERAJAT KEANGGOTAAN PENUH: nilai tidak dipaksa masuk ke satu himpunan,
+# melainkan derajatnya terhadap seluruh himpunan dihitung lalu TFN dirata-rata berbobot. Varian
+# "petakan ke satu himpunan" sudah diuji dan DITOLAK — ia menyeret 25 dari 50 kursi kuota ke
+# posisi seri (evaluasi pra-Fase 4 §5.2).
+keanggotaan:
+  pendapatan:
+    satuan: Rupiah per kapita per bulan
+    domain: [0, 3000000]
+    himpunan:
+      - {nama: sangat_rendah, bentuk: segitiga, titik: [0, 0, 500000]}
+      - {nama: rendah,        bentuk: segitiga, titik: [0, 500000, 1500000]}
+      - {nama: sedang,        bentuk: segitiga, titik: [500000, 1500000, 3000000]}
+      - {nama: tinggi,        bentuk: segitiga, titik: [1500000, 3000000, 3000000]}
+
+  jumlah_tanggungan:
+    satuan: orang
+    domain: [0, 10]
+    himpunan:
+      - {nama: sedikit,       bentuk: segitiga, titik: [0, 0, 3]}
+      - {nama: sedang,        bentuk: segitiga, titik: [0, 3, 6]}
+      - {nama: banyak,        bentuk: segitiga, titik: [3, 6, 10]}
+      - {nama: sangat_banyak, bentuk: segitiga, titik: [6, 10, 10]}
+
+  housing_need:
+    satuan: skor kebutuhan kondisi rumah (1 = paling tidak layak huni)
+    domain: [0, 1]
+    himpunan:
+      - {nama: layak,          bentuk: segitiga, titik: [0, 0, 0.33]}
+      - {nama: cukup,          bentuk: segitiga, titik: [0, 0.33, 0.67]}
+      - {nama: buruk,          bentuk: segitiga, titik: [0.33, 0.67, 1.0]}
+      - {nama: sangat_buruk,   bentuk: segitiga, titik: [0.67, 1.0, 1.0]}
+
+  skor_urgensi:
+    # `skala: logit` — nilai crisp yang difuzzifikasi adalah MARGIN LOGIT Tier 1, bukan
+    # probabilitasnya. Alasannya bukan preferensi gaya: probabilitas Tier 1 menjenuh sehingga 991
+    # alternatif hanya menghasilkan 5 nilai berbeda (105 di 0,0002; 886 di >=0,9939), membuat
+    # kriteria berbobot 0,25 ini bekerja sebagai saklar biner. Margin logit-nya membentang
+    # -8,6..+8,7 dengan resolusi utuh. Lihat evaluasi pra-Fase 4 §5.1.
+    skala: logit
+    satuan: margin logit kelas 'tinggi' terhadap 'rendah'
+    domain: [-10, 10]
+    himpunan:
+      - {nama: sangat_rendah, bentuk: segitiga, titik: [-10, -10, -3]}
+      - {nama: rendah,        bentuk: segitiga, titik: [-10, -3, 3]}
+      - {nama: sedang,        bentuk: segitiga, titik: [-3, 3, 10]}
+      - {nama: tinggi,        bentuk: segitiga, titik: [3, 10, 10]}
+
+# ---------------------------------------------------------------------------------------------
+# Aturan pemecah seri (tiebreak)
+# ---------------------------------------------------------------------------------------------
+# 6,1% alternatif memiliki vektor kriteria yang PERSIS kembar (evaluasi pra-Fase 4 §5.6) — seri
+# sejati yang tidak dapat dihilangkan metode apa pun, karena dua warga berdata identik memang
+# layak diperlakukan sama. Yang dapat dan harus dilakukan adalah membuat urutan sesudahnya
+# deterministik, tercatat, dan dapat dipertanggungjawabkan — bukan bergantung pada urutan baris.
+# Diterapkan berurutan; `pengajuan_id` selalu menjadi pemutus terakhir agar hasil reproducible.
+tiebreak:
+  - {kriteria: skor_urgensi, arah: desc}
+  - {kriteria: pendapatan, arah: asc}
+  - {kriteria: jumlah_tanggungan, arah: desc}
+  - {kriteria: pengajuan_id, arah: asc}

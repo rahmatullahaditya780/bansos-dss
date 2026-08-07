@@ -1,0 +1,52 @@
+==============================================================================
+HASIL FASE 4 — FUZZY TOPSIS (implementasi terpasang)
+==============================================================================
+Metode        : fuzzy-topsis-chen2000-v1
+Konfigurasi   : provisional-1  (pustaka MF: scikit-fuzzy)
+Bobot         : {'pendapatan': 0.35, 'jumlah_tanggungan': 0.2, 'housing_need': 0.2, 'skor_urgensi': 0.25}
+Skala kriteria: {'pendapatan': 'linier', 'jumlah_tanggungan': 'linier', 'housing_need': 'linier', 'skor_urgensi': 'logit'}
+Tiebreak      : skor_urgensi -> pendapatan -> jumlah_tanggungan -> pengajuan_id
+
+Memuat batch ...
+  Tier 2 penyaring batch : tier2-random-forest-sintetis-v1 (fallback=False)
+  Alternatif lolos Tier 2: 991
+
+------------------------------------------------------------------------------
+TABEL 1. Daya beda & seri   (kuota top-50 dari 991 alternatif)
+------------------------------------------------------------------------------
+metode                        nilai unik  seri terbesar  seri di batas kuota
+Fuzzy TOPSIS (terpasang)             972              3                    1
+TOPSIS crisp (cadangan)              972              3                    1
+
+  Alternatif dengan vektor kriteria persis kembar: 36 (3.6%)
+  Seri yang berasal dari kembar sejati tidak dapat dihapus metode apa pun — dua warga
+  berdata identik memang layak diperlakukan sama. Yang menanganinya adalah aturan
+  tiebreak yang tercatat: skor_urgensi -> pendapatan -> jumlah_tanggungan -> pengajuan_id.
+
+------------------------------------------------------------------------------
+TABEL 2. Atribusi selisih — berapa bagian 'efek fuzzy' yang sebenarnya bukan fuzzy
+------------------------------------------------------------------------------
+perbandingan                                         rho    top-K sama
+crisp -> degenerat (efek rumusan TOPSIS)          0.9546         88.0%
+degenerat -> fuzzy (efek kefuzzian)               0.9973         90.0%
+crisp -> fuzzy (selisih total)                    0.9627         82.0%
+
+  Baris pertama memakai bilangan fuzzy BERLEBAR NOL: apa pun yang berubah di situ
+  berasal dari normalisasi & solusi ideal mutlak Chen (2000), bukan dari logika fuzzy.
+  Tanpa baris itu, seluruh selisih akan salah dilaporkan sebagai efek fuzzifikasi.
+
+------------------------------------------------------------------------------
+TABEL 3. Sensitivitas bobot — OI-12 belum tuntas (200 perturbasi/baris)
+------------------------------------------------------------------------------
+goyang bobot        top-K bertahan     churn   peringkat-1 berubah
++-10%                        99.1%      0.9%                  0.0%
++-20%                        98.0%      2.0%                  0.0%
++-50%                        92.7%      7.3%                  0.0%
+
+  Ini satu-satunya klaim Tier 3 yang sah dari data sintetis: yang diukur sifat metode
+  terhadap perturbasi, bukan ketepatannya terhadap suatu kebenaran (§5.5).
+
+==============================================================================
+Catatan: nilai preferensi bersifat relatif terhadap batch (normalisasi memakai maksimum
+teramati). Yang bermakna adalah PERINGKAT, bukan besar nilainya.
+==============================================================================

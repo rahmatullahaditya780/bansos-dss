@@ -1,6 +1,6 @@
 # Fase 4 — Tier 3 Matang: Fuzzy TOPSIS (Perangkingan)
 
-**Jalur:** A · **Target:** minggu 7–8 · **Status:** 🔶 Siap dimulai — probe pra-fase selesai, rancangan terkunci
+**Jalur:** A · **Target:** minggu 7–8 · **Status:** ✅ SELESAI (2026-08-07) — exit criteria terpenuhi; bobot & rentang final menunggu kelurahan (Fase 6)
 
 ## Tujuan
 
@@ -101,31 +101,125 @@ implementasi dimulai.**
 
 | Berkas | Isi |
 |---|---|
-| `ml/tier3/__init__.py` | Konstanta versi, nama himpunan linguistik, versi fallback |
-| `ml/tier3/keanggotaan.py` | Fungsi keanggotaan segitiga/trapesium per kriteria; **satu sumber** untuk fuzzifikasi & penjelasan (anti-skew, meniru `skema_fitur.py`) |
-| `ml/tier3/fuzzy_topsis.py` | Chen (2000) lengkap: normalisasi → bobot → FPIS/FNIS → jarak vertex → nilai preferensi; mode `degenerat` untuk kontrol |
-| `ml/tier3/sensitivitas.py` | Perturbasi bobot, churn top-K, atribusi crisp/degenerat/fuzzy — perkakas yang menghasilkan tabel deliverable |
+| `ml/tier3/__init__.py` | Konstanta versi metode & fallback, tipe `TFN`, batas klaim tier |
+| `ml/tier3/keanggotaan.py` | Fungsi keanggotaan segitiga/trapesium per kriteria + fuzzifikasi derajat penuh; **satu sumber** untuk fuzzifikasi *dan* label penjelasan (anti-skew, meniru `skema_fitur.py`) |
+| `ml/tier3/fuzzy_topsis.py` | Chen (2000) lengkap: arah → normalisasi → bobot → FPIS/FNIS → jarak vertex → nilai preferensi; mode `degenerat` untuk kontrol; perakitan peringkat + tiebreak |
+| `ml/tier3/crisp.py` | TOPSIS crisp Fase 0 — jalur cadangan **dan** pembanding atribusi; pembulatan sebelum pengurutan dihapus |
+| `ml/tier3/sensitivitas.py` | Perturbasi bobot, churn top-K, atribusi crisp/degenerat/fuzzy, statistik seri — perkakas yang menghasilkan tabel deliverable |
 | `config/fuzzy_config.yaml` | + blok `keanggotaan:` (bentuk & rentang per kriteria, OI-13) + `tiebreak:` + `versi` |
-| `app/services/tier3_topsis.py` | Pembungkus tipis; **kontrak `rank_topsis()` dipertahankan** |
-| `app/services/pipeline.py` | Snapshot versi konfigurasi keanggotaan ke batch (di samping `bobot_snapshot`) |
-| `tests/test_tier3.py` | Perhitungan manual, monotonisitas, penanganan seri, fallback bertanda, invarian (mis. alternatif dominan selalu peringkat 1) |
+| `app/services/tier3_topsis.py` | Pembungkus tipis + `info_fuzzy()`; **kontrak `rank_topsis()` dipertahankan** |
+| `app/services/pipeline.py` | Snapshot konfigurasi lengkap ke batch (bobot, arah, versi konfigurasi, versi metode, tiebreak) |
+| `app/services/fuzzy_config.py` | Kunci `keanggotaan`/`tiebreak` + `reset_fuzzy_config()` |
+| `app/schemas/hasil.py` | `versi_metode` & `versi_konfigurasi` pada `RankingResult` |
+| `ml/tier1/infer.py`, `app/services/tier1_nlp.py` | Margin logit diekspos; **pembulatan probabilitas di sumber dihapus** |
+| `tests/test_tier3.py` | 34 tes: perhitungan manual, monotonisitas, seri & tiebreak, presisi penuh, skala logit, fallback bertanda, validasi konfigurasi, kesetaraan dengan scikit-fuzzy |
+
+## Hasil
+
+Seluruh angka di bawah berasal dari **implementasi yang terpasang** (`ml/tier3/`, kode yang sama
+yang melayani `POST /analisis/ranking`) atas **991 alternatif** batch OI-15 — pengajuan yang
+diloloskan `tier2-random-forest-sintetis-v1`. Reproduksi:
+[`hasil_fase4.py`](hasil_fase4.py) → [`hasil_fase4.txt`](hasil_fase4.txt).
+
+**Tidak satu pun tabel di bawah berupa akurasi**, dan itu disengaja: Tier 3 tidak punya label
+kebenaran (evaluasi §5.5).
+
+### Efek samping yang menentukan: resolusi urgensi pulih
+
+Keputusan memakai margin logit dijalankan dengan menghapus pembulatan 4 desimal di sumber Tier 1
+(`ml/tier1/infer.py`). Dampaknya jauh lebih besar dari perkiraan:
+
+| | skor_urgensi (2.020 narasi) | margin logit |
+|---|---|---|
+| Sebelum (dibulatkan 4 desimal) | **5** nilai berbeda | — |
+| Sesudah (presisi penuh) | **65** nilai berbeda | −8,688 … +8,851 |
+
+Kriteria berbobot 0,25 yang tadinya saklar biner kembali menjadi kriteria sungguhan. Seluruh tabel
+berikut memakai korpus yang sudah diekspor ulang; angka probe pra-fase **tidak sebanding** dengannya
+karena probe berjalan di atas korpus lama yang terbulat.
+
+### Tabel 1 — daya beda & seri (kuota top-50 dari 991)
+
+| Metode | Nilai preferensi unik | Grup seri terbesar | Seri di garis kuota |
+|---|---|---|---|
+| **Fuzzy TOPSIS (terpasang)** | **972** | **3** | **1** |
+| TOPSIS crisp (cadangan) | 972 | 3 | 1 |
+
+Bandingkan dengan varian kuantisasi linguistik yang ditolak di muka: 81 nilai unik, grup seri 72,
+dan **25 seri di garis kuota**. Rancangan yang dipilih menghapus persoalan itu sepenuhnya — hanya
+**1** alternatif berada di garis potong, dan itu pun karena kembar sejati.
+
+Alternatif dengan vektor kriteria persis kembar turun dari 6,1% (probe) ke **3,6%**, sekali lagi
+karena urgensi kembali membedakan. Seri sisa tidak dapat dihapus metode apa pun; ia ditangani
+aturan tiebreak yang tercatat di konfigurasi: `skor_urgensi → pendapatan → jumlah_tanggungan →
+pengajuan_id`.
+
+### Tabel 2 — atribusi: berapa bagian "efek fuzzy" yang sebenarnya bukan fuzzy
+
+| Perbandingan | ρ | top-50 sama | Yang diukur |
+|---|---|---|---|
+| crisp → **degenerat** *(TFN lebar nol)* | 0,9546 | **88,0%** | Rumusan Chen: normalisasi linier + solusi ideal mutlak |
+| degenerat → fuzzy | 0,9973 | 90,0% | Kefuzzian yang sesungguhnya |
+| crisp → fuzzy *(selisih total)* | 0,9627 | 82,0% | Gabungan keduanya |
+
+Dari 18 poin persen pergantian daftar penerima, **12 pp terjadi tanpa satu pun bilangan fuzzy yang
+punya lebar**. Klaim yang sah berbunyi: *rumusan Fuzzy TOPSIS Chen (2000) menghasilkan perangkingan
+berbeda dari TOPSIS crisp, dan sebagian besar perbedaan itu berasal dari definisi solusi idealnya,
+bukan dari fuzzifikasi.* Baris `degenerat` wajib ikut ke bab hasil.
+
+### Tabel 3 — sensitivitas bobot (200 perturbasi per baris, OI-12 belum tuntas)
+
+| Goyang bobot | top-50 bertahan | Churn | Peringkat-1 berubah |
+|---|---|---|---|
+| ±10% | 99,1% | 0,9% | 0,0% |
+| ±20% | 98,0% | 2,0% | 0,0% |
+| ±50% | 92,7% | 7,3% | **0,0%** |
+
+**Ini satu-satunya klaim Tier 3 yang sah dilaporkan dari data sintetis**, karena yang diukur sifat
+metode terhadap perturbasi — bukan ketepatan terhadap suatu kebenaran. Bacaannya: daftar penerima
+tidak ditentukan oleh bobot provisional. Bahkan pada goyangan ±50%, 92,7% penerima bertahan dan
+peringkat teratas tidak pernah berpindah. Menunggu OI-12 tidak memblokir apa pun; yang belum boleh
+diklaim hanyalah nilai preferensi sebagai angka pasti.
+
+### Verifikasi end-to-end
+
+300 pengajuan dianalisis ulang lewat `POST /analisis`, lalu dirangking:
+
+- `versi_metode` = `fuzzy-topsis-chen2000-v1`, `versi_konfigurasi` = `provisional-1`,
+  `fallback_aktif` = `False`, pustaka keanggotaan = **scikit-fuzzy**;
+- 145 dari 300 lolos Tier 2 dan masuk batch (OI-15 utuh);
+- `bobot_snapshot` menyimpan bobot, arah, versi konfigurasi, versi metode, dan aturan tiebreak;
+- **82 tes lulus** (sebelumnya 48; +34 tes Tier 3).
+
+### Kontaminasi yang tersingkap saat verifikasi
+
+Perangkingan pertama menghasilkan skor urgensi 0,625 dan 0,75 — pola yang mustahil bagi IndoBERT.
+Penelusurannya: kelima baris `skor_urgensi` di basis data bertanda **`stub-indobert-v0`**, yaitu
+stub Fase 0, dan tidak pernah diperbarui setelah artefak Tier 1 terpasang. Perangkingan Fuzzy TOPSIS
+yang sepenuhnya benar sedang bekerja di atas masukan stub.
+
+Ini kejadian ketiga dari jenis kegagalan yang sama (setelah dua kali `.env` menimpa `.env.example`),
+dan ketiganya **hanya tersingkap oleh penanda versi**, bukan oleh tes — tes kontrak memeriksa bentuk
+keluaran, dan bentuknya selalu benar. Baris-baris itu sudah dianalisis ulang; kini seluruh 300 baris
+bertanda `indobert-p1-augmentasi-v3`.
 
 ## Deliverable / Checklist
 
 - [x] Probe pra-fase: apakah tujuan Fase 4 tercapai di data yang ada → [`hasil_probe.txt`](hasil_probe.txt)
 - [x] Uji lima varian fuzzifikasi; pilih berdasarkan bukti, bukan konvensi → varian **keanggotaan**
 - [x] Kontrol atribusi (TFN lebar nol) memisahkan efek mesin TOPSIS dari efek kefuzzian
-- [ ] Definisikan fungsi keanggotaan per kriteria (bentuk & rentang) di `config/fuzzy_config.yaml` (OI-13)
-- [ ] Implementasi Fuzzy TOPSIS Chen (2000) (FR-18…FR-21) di `ml/tier3/`
-- [ ] Aturan tiebreak deterministik + pengurutan presisi penuh
-- [ ] Ganti `app/services/tier3_topsis.py` — kontrak `rank_topsis()` dipertahankan
-- [ ] Alur OI-15 tetap: batch = pengajuan dengan `prediksi_ml = layak` saja (sudah benar, jangan rusak)
-- [ ] Snapshot bobot **dan** versi konfigurasi keanggotaan per batch
-- [ ] **Contoh perhitungan manual** 4–5 alternatif, cocok sampai digit terakhir → jadi tes
-- [ ] **Analisis sensitivitas bobot** (tabel ±20% & ±50%) + tabel atribusi → artefak fase
-- [ ] `tests/test_tier3.py` + seluruh tes lama tetap lulus (baseline saat ini: 48)
-- [ ] Putuskan perlakuan `skor_urgensi` (opsi A/B/C di atas) — **menunggu persetujuan**
+- [x] Putuskan perlakuan `skor_urgensi` → **opsi A (margin logit)**, disetujui 2026-08-07
+- [x] Definisikan fungsi keanggotaan per kriteria (bentuk & rentang) di `config/fuzzy_config.yaml` (OI-13)
+- [x] Implementasi Fuzzy TOPSIS Chen (2000) (FR-18…FR-21) di `ml/tier3/`
+- [x] Aturan tiebreak deterministik + pengurutan presisi penuh
+- [x] Ganti `app/services/tier3_topsis.py` — kontrak `rank_topsis()` dipertahankan
+- [x] Alur OI-15 tetap: batch = pengajuan dengan `prediksi_ml = layak` saja (145 dari 300, utuh)
+- [x] Snapshot bobot **dan** versi konfigurasi keanggotaan per batch
+- [x] **Contoh perhitungan manual** 3 alternatif simetris → CC = 0,75 / 0,50 / 0,25, cocok sampai digit terakhir
+- [x] **Analisis sensitivitas bobot** (±10/20/50%) + tabel atribusi → [`hasil_fase4.txt`](hasil_fase4.txt)
+- [x] `tests/test_tier3.py` + seluruh tes lama tetap lulus (**82 lulus**, sebelumnya 48)
 - [ ] Formalisasi bobot & rentang keanggotaan dengan kelurahan (OI-12/OI-13) — **menunggu Fase 6**
+- [ ] *(warisan)* `ml/tier1/infer.py` — `info()` masih melaporkan `fallback_aktif: false` sebelum pemuatan pertama; rapikan saat Tier 1 disentuh lagi
 
 ## Exit criteria
 
@@ -133,6 +227,8 @@ implementasi dimulai.**
 TOPSIS asli; hasil cocok dengan perhitungan manual sampai digit terakhir; `ranking_topsis` menyimpan
 nilai preferensi + peringkat + snapshot bobot & versi keanggotaan; tiebreak deterministik dan tercatat;
 tabel sensitivitas bobot & atribusi tersedia; pipeline 3-tier nyata end-to-end; seluruh tes lulus.
+→ **TERPENUHI** (2026-08-07), lihat [Hasil](#hasil). Untuk pertama kalinya sejak Fase 0, sebuah fase
+Jalur A ditutup tanpa menuliskan "menunggu data lokal" di kolom hasilnya.
 
 **Untuk klaim skripsi (Fase 6):** bobot & fungsi keanggotaan yang disepakati kelurahan, dan
 kesesuaian perangkingan dengan penilaian petugas.
@@ -140,14 +236,29 @@ kesesuaian perangkingan dengan penilaian petugas.
 ## Alur reproduksi
 
 ```powershell
-# Probe pra-fase (ulangi bila kriteria/bobot/generator berubah)
+# 1) Ekspor ulang korpus — WAJIB setelah pembulatan Tier 1 dihapus, agar skor urgensi
+#    tersimpan presisi penuh (tanpa ini kriteria urgensi hanya punya 5 nilai berbeda).
+python -m ml.tier2.dataset --outdir data/corpus --asal-data sintetis
+
+# 2) Tabel deliverable Fase 4 (daya beda & seri, atribusi, sensitivitas bobot)
+python progres/fase-4-tier3-fuzzy-topsis/hasil_fase4.py
+
+# 3) Verifikasi konfigurasi terpasang
+python -c "from app.services.tier3_topsis import info_fuzzy; print(info_fuzzy())"
+
+# Probe pra-fase (arsip keputusan rancangan; ulangi bila kriteria/bobot berubah)
 python progres/fase-4-tier3-fuzzy-topsis/probe_fuzzy_topsis.py
-python progres/fase-4-tier3-fuzzy-topsis/probe_fuzzy_topsis.py --goyang 0.5   # sensitivitas lebih lebar
-python progres/fase-4-tier3-fuzzy-topsis/probe_fuzzy_topsis.py --sumber db    # langsung dari basis data
+python progres/fase-4-tier3-fuzzy-topsis/probe_fuzzy_topsis.py --goyang 0.5
 ```
 
-Probe memakai `data/corpus/tier2_*.csv` (hasil ekspor Fase 3) dan menyaringnya lewat Tier 2 sungguhan;
-ia mencetak peringatan bila Tier 2 sedang memakai fallback, karena batch dari fallback tidak sah.
+Keduanya memakai `data/corpus/tier2_*.csv` dan menyaringnya lewat Tier 2 sungguhan; keduanya
+mencetak peringatan bila Tier 2 sedang memakai fallback, karena batch dari fallback tidak sah.
+
+**Cara memverifikasi pemasangan** (`info_fuzzy()`): `fallback_aktif` harus `False`, `versi_metode`
+harus `fuzzy-topsis-chen2000-v1`, dan `skala.skor_urgensi` harus `logit`. Bila `versi_metode`
+bertuliskan `topsis-crisp-fallback-v0`, konfigurasi keanggotaan tidak terbaca dan sistem sedang
+merangking **tanpa logika fuzzy** — seluruh tes akan tetap hijau, persis seperti tiga kegagalan
+senyap sebelumnya.
 
 ## Catatan & artefak
 

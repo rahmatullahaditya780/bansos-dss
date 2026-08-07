@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,10 @@ from ml.tier1.preprocessing import preprocess
 logger = logging.getLogger(__name__)
 
 VERSI_FALLBACK = "heuristik-fallback-v0"
+
+# Penjepit probabilitas saat membalik ke logit — mencegah pembagian nol pada p tepat 0 atau 1.
+# Batas ini setara margin +-27,6; jauh di luar rentang teramati (-8,6..+8,7).
+_EPS_PROB = 1e-12
 
 # Bobot kata kunci untuk heuristik cadangan (dipertahankan dari stub Fase 0).
 _KATA_URGEN = {
@@ -34,9 +39,25 @@ _KATA_URGEN = {
 
 @dataclass(frozen=True)
 class HasilSkor:
-    skor: float          # probabilitas kelas 'tinggi', 0..1
+    skor: float            # probabilitas kelas 'tinggi', 0..1
     versi_model: str
     fallback: bool = False
+    margin: float | None = None  # logit('tinggi') - logit('rendah'); None bila dari heuristik
+
+    @property
+    def margin_efektif(self) -> float:
+        """Margin logit; diturunkan dari probabilitas bila model tidak menyediakannya langsung.
+
+        Dipakai Tier 3 sebagai nilai crisp kriteria urgensi. Probabilitas **tidak** dapat dipakai
+        apa adanya: pada model yang memisahkan kelas dengan sangat baik, softmax menjenuh dan
+        seluruh kasus mendesak menumpuk di ~0,9998 — 991 alternatif hanya menghasilkan 5 nilai
+        berbeda (evaluasi pra-Fase 4 §5.1). Margin logit-nya membentang -8,6..+8,7 dengan resolusi
+        utuh; informasi urutannya tidak hilang di model, melainkan di sigmoid.
+        """
+        if self.margin is not None:
+            return self.margin
+        p = min(max(self.skor, _EPS_PROB), 1.0 - _EPS_PROB)
+        return math.log(p / (1.0 - p))
 
 
 def skor_heuristik(text: str) -> float:
@@ -145,7 +166,15 @@ class UrgencyScorer:
         with torch.no_grad():
             logits = self._model(**enc).logits
         prob = torch.softmax(logits, dim=-1)[:, LABEL2ID["tinggi"]].cpu().tolist()
-        return [HasilSkor(round(float(p), 4), self.versi_model) for p in prob]
+        # Margin logit disimpan berdampingan dengan probabilitas: ia yang dipakai Tier 3, karena
+        # softmax meremas seluruh kasus mendesak ke satu titik (lihat `HasilSkor.margin_efektif`).
+        selisih = (logits[:, LABEL2ID["tinggi"]] - logits[:, LABEL2ID["rendah"]]).cpu().tolist()
+        # Probabilitas TIDAK dibulatkan di sini. Pembulatan 4 desimal yang dulu ada di baris ini
+        # adalah pembulatan untuk tampilan yang bocor ke perhitungan — kekeliruan yang sama dengan
+        # `tier3_topsis.py` yang membulatkan sebelum mengurutkan. Bulatkan saat menampilkan.
+        return [
+            HasilSkor(float(p), self.versi_model, margin=float(m)) for p, m in zip(prob, selisih)
+        ]
 
     def info(self) -> dict[str, object]:
         """Status pemuatan — dipakai untuk diagnostik/dokumentasi hasil."""

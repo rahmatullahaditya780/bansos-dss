@@ -54,6 +54,10 @@ class RankingResult(BaseModel):
     batch_id: str
     jumlah_alternatif: int
     ranking: list[RankingItem]
+    # Ditandai agar batch yang dirangking TANPA logika fuzzy (konfigurasi keanggotaan tidak sah →
+    # `topsis-crisp-fallback-v0`) tidak pernah tersangka keluaran Fuzzy TOPSIS.
+    versi_metode: str = ""
+    versi_konfigurasi: Optional[str] = None
 
 
 class VerifikasiIn(BaseModel):

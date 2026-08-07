@@ -22,7 +22,7 @@ Legenda status: ✅ Selesai · 🔶 Sedang berjalan · ⬜ Belum mulai
 | [1](fase-1-data-pelabelan/) | Data: Publik, Lokal & Pelabelan | B | 🔶 Berjalan |
 | [2](fase-2-tier1-indobert/) | Tier 1 Matang — IndoBERT (skor urgensi) | A | 🔶 Kode selesai; fine-tune final menunggu data lokal |
 | [3](fase-3-tier2-ml/) | Tier 2 Matang — Klasifikasi ML (kelayakan) | A | 🔶 Kode selesai; pemilihan model final menunggu data lokal |
-| [4](fase-4-tier3-fuzzy-topsis/) | Tier 3 Matang — Fuzzy TOPSIS (ranking) | A | 🔶 Probe pra-fase selesai; rancangan terkunci, implementasi belum mulai |
+| [4](fase-4-tier3-fuzzy-topsis/) | Tier 3 Matang — Fuzzy TOPSIS (ranking) | A | ✅ Selesai — bobot & rentang final menunggu kelurahan (Fase 6) |
 | [5](fase-5-dashboard-pengujian/) | Dashboard, Penjelasan & Instrumen Pengujian | A | ⬜ Belum |
 | [6](fase-6-integrasi-data-lokal/) | Integrasi Data Lokal & Finalisasi Konfigurasi | A+B | ⬜ Belum |
 | [7](fase-7-pengujian-uat-deploy/) | Pengujian, UAT & Deployment | A | ⬜ Belum |

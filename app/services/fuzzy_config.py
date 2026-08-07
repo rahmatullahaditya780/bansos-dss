@@ -24,6 +24,12 @@ _DEFAULT: dict[str, Any] = {
         "skor_urgensi": "benefit",
     },
     "pendapatan_kategori": {"sangat_rendah": 500000, "rendah": 1000000, "sedang": 2000000},
+    # Sengaja TIDAK memuat definisi fungsi keanggotaan (OI-13) maupun aturan tiebreak: keduanya
+    # hanya hidup di `config/fuzzy_config.yaml` supaya ada satu sumber. Bila berkas itu hilang,
+    # Tier 3 turun ke TOPSIS crisp bertanda `topsis-crisp-fallback-v0` — terlihat jelas di
+    # `bobot_snapshot`, bukan diam-diam memakai definisi bayangan yang berbeda dari berkas.
+    "keanggotaan": {},
+    "tiebreak": [],
 }
 
 
@@ -39,3 +45,8 @@ def load_fuzzy_config() -> dict[str, Any]:
     for key in ("bobot", "arah", "pendapatan_kategori"):
         merged[key] = {**_DEFAULT[key], **(data.get(key) or {})}
     return merged
+
+
+def reset_fuzzy_config() -> None:
+    """Lupakan konfigurasi yang sudah di-cache (dipakai tes / setelah berkas diubah)."""
+    load_fuzzy_config.cache_clear()

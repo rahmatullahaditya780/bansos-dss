@@ -8,6 +8,60 @@ perbaikan bug penting, penggantian pustaka/versi, dan hasil pengujian yang mengu
 
 ---
 
+## 2026-08-07 — Fase 4: Tier 3 Fuzzy TOPSIS (SELESAI — fase Jalur A pertama yang tuntas tanpa data lokal)
+
+**Dibangun:** paket `ml/tier3/` (fungsi keanggotaan + fuzzifikasi derajat penuh, Chen 2000 lengkap,
+TOPSIS crisp sebagai cadangan & pembanding, perkakas sensitivitas/atribusi), blok `keanggotaan:` +
+`tiebreak:` di `config/fuzzy_config.yaml` (OI-13 termaterialisasi), `app/services/tier3_topsis.py`
+ditulis ulang jadi pembungkus tipis + `info_fuzzy()`, dan 34 tes Tier 3. Stub TOPSIS crisp Fase 0
+DIGANTI — kontrak `rank_topsis()` tidak berubah. Tes: **82 lulus** (sebelumnya 48). scikit-fuzzy
+0.5.0 dipakai sungguhan (vektor per kolom kriteria), dengan implementasi acuan murni-Python untuk
+instalasi `requirements.txt` polos; kesetaraan keduanya diuji eksplisit.
+
+**Keputusan `skor_urgensi` dijalankan (opsi A):** kriteria urgensi difuzzifikasi dari **margin
+logit**, bukan probabilitasnya. Pelaksanaannya ternyata cuma butuh satu perubahan kecil —
+**menghapus pembulatan 4 desimal di `ml/tier1/infer.py`** — dan dampaknya jauh melampaui perkiraan:
+skor urgensi 2.020 narasi naik dari **5 menjadi 65 nilai berbeda** (margin −8,688…+8,851). Kriteria
+berbobot 0,25 yang tadinya saklar biner kembali menjadi kriteria sungguhan. Pembulatan itu ternyata
+kekeliruan yang sama persis dengan `tier3_topsis.py:65` (membulatkan sebelum mengurutkan):
+pembulatan untuk tampilan yang bocor ke perhitungan. Keduanya kini dibulatkan hanya saat
+menyimpan/menampilkan.
+
+**Hasil (991 alternatif batch OI-15, implementasi terpasang — bukan prototipe probe):**
+- **Seri praktis lenyap:** 972 nilai preferensi unik dari 991, grup seri terbesar 3, dan hanya
+  **1 seri di garis kuota** — bandingkan varian kuantisasi linguistik yang ditolak di muka: 81 nilai
+  unik, grup seri 72, **25 seri di garis kuota**. Vektor kriteria kembar turun 6,1% → 3,6%.
+- **Atribusi:** dari 18 pp pergantian daftar penerima terhadap TOPSIS crisp, **12 pp terjadi tanpa
+  satu pun bilangan fuzzy berlebar** (kontrol TFN lebar nol: ρ 0,9546, top-50 88,0%). Kefuzzian
+  sendiri menyumbang sisanya (ρ 0,9973, 90,0%). Baris kontrol wajib ikut ke bab hasil.
+- **Sensitivitas bobot:** top-50 bertahan 99,1% / 98,0% / 92,7% pada goyangan ±10/20/50%, dan
+  **peringkat-1 tidak pernah berpindah**. Menunggu OI-12 tidak memblokir apa pun.
+
+**Adaptasi rumus yang disengaja:** kriteria *cost* diubah lewat **komplemen** `(1-u, 1-m, 1-l)`,
+bukan resiprokal Chen. Resiprokal mengandaikan matriks keputusan bernilai mentah positif; di sini
+fuzzifikasi sudah memetakan seluruh kriteria ke skala 0..1 yang sama, sehingga nilai 0 sah muncul
+(resiprokal membagi nol) dan resiprokal juga meregangkan jarak secara non-linier pada skala yang
+sudah seragam. Sisa rumus Chen dipakai apa adanya.
+
+**Kontaminasi tersingkap saat verifikasi end-to-end:** perangkingan pertama memberi skor urgensi
+0,625 dan 0,75 — mustahil bagi IndoBERT. Ternyata kelima baris `skor_urgensi` di basis data bertanda
+**`stub-indobert-v0`** (stub Fase 0) dan tak pernah diperbarui sejak artefak Tier 1 terpasang: Fuzzy
+TOPSIS yang benar bekerja di atas masukan stub. Ini kejadian **ketiga** dari jenis kegagalan yang
+sama, dan ketiganya hanya tersingkap oleh penanda versi — bukan oleh tes, karena tes kontrak
+memeriksa bentuk keluaran dan bentuknya selalu benar. 300 pengajuan dianalisis ulang; kini seluruhnya
+bertanda `indobert-p1-augmentasi-v3`.
+
+**Perubahan lain:** `bobot_snapshot` kini menyimpan konfigurasi lengkap (bobot, arah, versi
+konfigurasi, versi metode, tiebreak) — bukan hanya bobot; `RankingResult` membawa `versi_metode` &
+`versi_konfigurasi`; fallback `topsis-crisp-fallback-v0` melengkapi pola penanda versi di ketiga tier.
+
+**Yang TIDAK dilaporkan, dan tidak akan pernah:** akurasi Tier 3. Tier ini tidak punya label
+kebenaran, sehingga validasinya bertumpu pada perhitungan manual (3 alternatif simetris →
+CC = 0,75/0,50/0,25, cocok sampai digit terakhir) dan sifat metode. Bobot & rentang keanggotaan final
+tetap menunggu kesepakatan kelurahan (OI-12/OI-13, Fase 6).
+
+---
+
 ## 2026-08-07 — Gerbang Fase 4: evaluasi lintas-fase + probe pra-Fase 4 (rancangan Tier 3 terkunci)
 
 **Dikerjakan:** [evaluasi pra-Fase 4](evaluasi-pra-fase-4.md) atas Fase 0–3, verifikasi pemasangan

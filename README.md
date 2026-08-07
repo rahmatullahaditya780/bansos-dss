@@ -9,12 +9,19 @@ Turunan teknis dari `../TRD.md`. Lihat rencana tahapan di
 
 ## Status
 
-**Fase 3 — Tier 2 matang.** Skor urgensi berasal dari **IndoBERT hasil fine-tuning** (Fase 2) dan
-kelayakan dari **Random Forest** hasil perbandingan RF vs Gradient Boosting (Fase 3); Tier 3 masih
-*stub* dan diganti pada Fase 4. Model kedua tier masih dilatih di data sintetis/augmentasi —
+**Fase 4 — ketiga tier asli, tidak ada lagi stub.** Skor urgensi dari **IndoBERT hasil fine-tuning**
+(Fase 2), kelayakan dari **Random Forest** hasil perbandingan RF vs Gradient Boosting (Fase 3), dan
+perangkingan dari **Fuzzy TOPSIS Chen (2000)** dengan fungsi keanggotaan yang dikonfigurasi (Fase 4).
+
+Batas klaim, dan ia berbeda per tier. Tier 1 & 2 masih dilatih di data sintetis/augmentasi —
 **metriknya memvalidasi pipa, bukan klaim skripsi**; angka final menunggu data lokal (Fase 6).
+Tier 3 tidak punya label kebenaran sama sekali, sehingga **akurasi tidak akan pernah dilaporkan
+untuknya**: yang divalidasi adalah kebenaran aritmetik (perhitungan manual) dan sifat metode
+(sensitivitas bobot, atribusi) — keduanya sudah tuntas.
+
 Rincian per fase: [`progres/`](progres/) · tinjauan lintas-fase:
-[`progres/evaluasi-pra-fase-3.md`](progres/evaluasi-pra-fase-3.md).
+[`evaluasi-pra-fase-3.md`](progres/evaluasi-pra-fase-3.md) ·
+[`evaluasi-pra-fase-4.md`](progres/evaluasi-pra-fase-4.md).
 
 ## Menjalankan (dev lokal, tanpa Docker)
 
@@ -48,11 +55,13 @@ API di http://localhost:8000. Skema dibuat otomatis (`alembic upgrade head`).
 | `app/core` | Konfigurasi & keamanan (hash password, JWT, RBAC) |
 | `app/db` | Model SQLAlchemy (skema TRD 6.4) + migrasi Alembic |
 | `app/api/routes` | Endpoint REST (TRD Bab 8) |
-| `app/services` | Logika tiap tier (Tier 1 & 2 asli; Tier 3 stub) + generator alasan + metrik |
+| `app/services` | Logika tiap tier (ketiganya asli) + generator alasan + metrik |
 | `app/templates` | Dashboard Jinja2 + Bootstrap 5 + HTMX |
 | `ml/tier1` | Preprocessing, korpus, pelatihan, evaluasi & inference IndoBERT (Tier 1) |
+| `ml/tier2` | Skema fitur, ekspor+split, latih & banding RF/GB, evaluasi, inference (Tier 2) |
+| `ml/tier3` | Fungsi keanggotaan, Fuzzy TOPSIS, TOPSIS crisp cadangan, sensitivitas (Tier 3) |
 | `ml/artifacts` | Artefak model terlatih (tidak di-commit — lihat `.gitignore`) |
-| `config/fuzzy_config.yaml` | Bobot kriteria & fungsi keanggotaan Fuzzy TOPSIS |
+| `config/fuzzy_config.yaml` | Bobot kriteria, arah, fungsi keanggotaan (OI-13) & aturan tiebreak |
 | `data/synthetic` | Generator data simulasi + skrip seed |
 | `data/corpus` | Korpus teks berlabel urgensi + split latih/uji (dibangkitkan, tidak di-commit) |
 
@@ -75,6 +84,28 @@ Fine-tuning produksi dijalankan di **Colab GPU** —
 Tanpa artefak, sistem tetap berjalan memakai **heuristik cadangan** dan menandai hasilnya
 `versi_model = heuristik-fallback-v0` — baris tersebut tidak sah dipakai untuk klaim evaluasi.
 Cek status: `python -c "from app.services.tier1_nlp import info_model; print(info_model())"`.
+
+## Tier 3 (Fuzzy TOPSIS)
+
+Perangkingan memakai Chen (2000) dengan fuzzifikasi **derajat keanggotaan penuh**: nilai crisp tidak
+dipaksa ke satu himpunan linguistik, melainkan derajatnya terhadap seluruh himpunan dihitung lalu
+bilangan fuzzy dirata-rata berbobot. Bentuk & rentang fungsi keanggotaan (OI-13), bobot (OI-12), dan
+aturan tiebreak seluruhnya ada di `config/fuzzy_config.yaml` — **dapat diubah tanpa menyentuh kode**
+(FR-19, NFR-06). Nilainya masih provisional sampai disepakati kelurahan (Fase 6).
+
+Kriteria urgensi difuzzifikasi dari **margin logit** Tier 1, bukan probabilitasnya: pada model yang
+memisahkan kelas dengan sangat baik softmax menjenuh, dan 2.020 narasi hanya menghasilkan 5 nilai
+probabilitas berbeda. Pada margin, angka itu menjadi 65.
+
+```powershell
+python -c "from app.services.tier3_topsis import info_fuzzy; print(info_fuzzy())"
+python progres/fase-4-tier3-fuzzy-topsis/hasil_fase4.py   # sensitivitas bobot & atribusi
+```
+
+Bila konfigurasi keanggotaan tidak sah, sistem tetap merangking memakai TOPSIS crisp dan menandainya
+`versi_metode = topsis-crisp-fallback-v0` — batch tersebut tidak sah dipakai untuk klaim evaluasi.
+**Tes tidak akan menangkap keadaan ini** (bentuk keluarannya tetap benar); yang menangkapnya hanya
+penanda versi, jadi periksa `info_fuzzy()` setelah mengubah konfigurasi.
 
 ## Catatan
 

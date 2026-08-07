@@ -155,7 +155,14 @@ def susun_hasil(pengajuan: models.Pengajuan) -> dict:
 
 
 def jalankan_ranking(db: Session, pengajuan_ids: list[int] | None = None) -> dict:
-    """Tier 3: rangking pengajuan yang lolos ML (hasil == 'layak'), simpan per batch."""
+    """Tier 3: rangking pengajuan yang lolos ML (hasil == 'layak'), simpan per batch.
+
+    Kriteria urgensi difuzzifikasi dari **margin logit**, bukan dari probabilitasnya — lihat
+    `ml/tier3/keanggotaan.py`. Margin itu tidak disimpan tersendiri di basis data; ia diturunkan
+    kembali dari `skor_urgensi.skor` (bijektif, dan sejak Fase 4 skor disimpan presisi penuh).
+    Baris yang dianalisis SEBELUM Fase 4 tersimpan terbulat 4 desimal dan karenanya kehilangan
+    daya beda pada kriteria ini sampai pengajuannya dianalisis ulang lewat `POST /analisis`.
+    """
     cfg = load_fuzzy_config()
     bobot = cfg["bobot"]
     arah = cfg["arah"]
@@ -180,6 +187,18 @@ def jalankan_ranking(db: Session, pengajuan_ids: list[int] | None = None) -> dic
     batch_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     nama_map = {p.id: p.warga.nama for p in kandidat}
     urg_map = {p.id: _urgensi_pengajuan(p) for p in kandidat}
+    versi_metode = ranking[0].versi_metode if ranking else tier3_topsis.VERSI_METODE
+
+    # Snapshot lengkap, bukan sekadar bobot: peringkat lama harus dapat ditelusuri ke SELURUH
+    # konfigurasi yang menghasilkannya — termasuk versi berkas, aturan tiebreak, dan apakah batch
+    # ini benar-benar dirangking Fuzzy TOPSIS atau oleh cadangan crisp.
+    snapshot = {
+        "bobot": dict(bobot),
+        "arah": dict(arah),
+        "versi_konfigurasi": cfg.get("versi"),
+        "versi_metode": versi_metode,
+        "tiebreak": cfg.get("tiebreak") or [],
+    }
 
     for entry in ranking:
         db.add(
@@ -188,7 +207,7 @@ def jalankan_ranking(db: Session, pengajuan_ids: list[int] | None = None) -> dic
                 pengajuan_id=entry.pengajuan_id,
                 nilai_preferensi=entry.nilai_preferensi,
                 peringkat=entry.peringkat,
-                bobot_snapshot=bobot,
+                bobot_snapshot=snapshot,
             )
         )
     db.commit()
@@ -196,6 +215,8 @@ def jalankan_ranking(db: Session, pengajuan_ids: list[int] | None = None) -> dic
     return {
         "batch_id": batch_id,
         "jumlah_alternatif": len(ranking),
+        "versi_metode": versi_metode,
+        "versi_konfigurasi": cfg.get("versi"),
         "ranking": [
             {
                 "peringkat": e.peringkat,
