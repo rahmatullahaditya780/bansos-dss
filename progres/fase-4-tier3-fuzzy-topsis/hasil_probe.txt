@@ -1,0 +1,86 @@
+==============================================================================
+PROBE PRA-FASE 4 — FUZZY TOPSIS
+==============================================================================
+Konfigurasi: versi=provisional-0  bobot={'pendapatan': 0.35, 'jumlah_tanggungan': 0.2, 'housing_need': 0.2, 'skor_urgensi': 0.25}
+Arah       : {'pendapatan': 'cost', 'jumlah_tanggungan': 'benefit', 'housing_need': 'benefit', 'skor_urgensi': 'benefit'}
+
+Memuat alternatif (sumber=korpus) ...
+  Tier 2 dipakai menyaring batch: tier2-random-forest-sintetis-v1 (fallback=False)
+  Alternatif lolos Tier 2 (batch OI-15): 991
+
+------------------------------------------------------------------------------
+P1. Distribusi kriteria — apakah ada yang bukan kontinu?
+------------------------------------------------------------------------------
+kriteria                     min      median        maks    unik  %ekstrem
+pendapatan           150000.00001017849.00002569595.0000     906      8.4%
+jumlah_tanggungan         0.0000      4.0000      8.0000       9      0.5%
+housing_need              0.3250      0.7750      1.0000     343     17.0%
+skor_urgensi              0.0002      0.9998      0.9999       5    100.0%
+  '%ekstrem' = porsi nilai yang menempel di ujung rentang. Nilai tinggi (>80%) berarti
+  kriteria itu berperilaku biner, bukan kontinu — fuzzifikasi 4 himpunan tak bermakna.
+  Rincian 'jumlah_tanggungan' (hanya 9 nilai berbeda): 0.0×3  1.0×24  2.0×109  3.0×202  4.0×276  5.0×242  6.0×104  7.0×29  8.0×2
+  Rincian 'skor_urgensi' (hanya 5 nilai berbeda): 0.0002×105  0.9939×52  0.9997×193  0.9998×547  0.9999×94
+
+------------------------------------------------------------------------------
+P1b. Asal-usul seri pada TOPSIS crisp — pembulatan atau vektor fitur kembar?
+------------------------------------------------------------------------------
+  Alternatif dengan vektor kriteria persis kembar : 60 dari 991 (6.1%), grup terbesar 10
+  Seri yang lahir dari vektor kembar TIDAK dapat dihilangkan metode apa pun — dua warga
+  yang datanya identik memang layak diperlakukan sama; yang harus ditangani adalah
+  aturan tiebreak yang tercatat, bukan pura-pura tidak ada seri.
+
+------------------------------------------------------------------------------
+P2/P3. Tiga varian fuzzifikasi vs TOPSIS crisp   (kuota top-50 dari 991)
+------------------------------------------------------------------------------
+varian          nilai unik  seri terbesar  seri@kuota  rho crisp  top-K sama
+degenerat              456             37           1     0.7724       58.0%
+linguistik              81             72          25     0.9160       54.0%
+keanggotaan            550             18           1     0.8635       54.0%
+langsung               470             34           1     0.7888       58.0%
+hibrida                453             37           5     0.7768       62.0%
+(crisp)                859             14          14     1.0000      100.0%
+
+  'seri@kuota' = berapa alternatif berbagi nilai preferensi PERSIS SAMA di garis potong
+  kuota. Angka > 1 berarti urutan pemenang di batas ditentukan tiebreak, bukan metode.
+  'rho crisp' ~ 1,00 + 'top-K sama' 100% berarti fuzzifikasi tidak mengubah keputusan.
+
+------------------------------------------------------------------------------
+P3b. Atribusi selisih: berapa bagian dari 'efek fuzzy' yang sebenarnya bukan fuzzy?
+------------------------------------------------------------------------------
+  crisp   -> degenerat (efek mesin TOPSIS)     rho=0.7724  top-50 sama=58.0%
+  degenerat -> keanggotaan (efek kefuzzian penuh) rho=0.8526  top-50 sama=74.0%
+  degenerat -> hibrida  (efek kefuzzian lebar) rho=0.9968  top-50 sama=96.0%
+  degenerat -> linguistik (efek kuantisasi)    rho=0.8332  top-50 sama=34.0%
+  Baris pertama memakai TFN berlebar NOL: apa pun yang berubah di situ berasal dari
+  normalisasi & solusi ideal mutlak Chen (2000), bukan dari logika fuzzy.
+
+------------------------------------------------------------------------------
+P4. Sensitivitas bobot — OI-12 belum tuntas (200 perturbasi ±20%)
+------------------------------------------------------------------------------
+metode          top-K bertahan  rerata churn  peringkat-1 berubah
+crisp                    93.2%          6.8%                 3.5%
+linguistik               92.9%          7.1%                 0.0%
+keanggotaan              97.2%          2.8%                 0.0%
+hibrida                  98.4%          1.6%                 0.0%
+
+  'top-K bertahan' = rerata porsi penerima top-K yang tetap masuk saat bobot digoyang
+  ±20%. Di bawah ~85% berarti daftar penerima ditentukan bobot provisional, bukan data.
+
+==============================================================================
+Probe selesai. Baca P2 lebih dulu: bila 'seri@kuota' > 1 pada varian linguistik,
+rancangan fuzzifikasi Fase 4 tidak boleh memakai kuantisasi linguistik polos.
+==============================================================================
+
+
+
+########## LAMPIRAN: sensitivitas bobot diperlebar ke ±50% (--goyang 0.5) ##########
+
+P4. Sensitivitas bobot — OI-12 belum tuntas (200 perturbasi ±50%)
+------------------------------------------------------------------------------
+metode          top-K bertahan  rerata churn  peringkat-1 berubah
+crisp                    86.8%         13.2%                32.0%
+linguistik               88.7%         11.3%                 0.0%
+keanggotaan              89.3%         10.7%                 0.0%
+hibrida                  96.4%          3.6%                 0.0%
+
+  'top-K bertahan' = rerata porsi penerima top-K yang tetap masuk saat bobot digoyang
