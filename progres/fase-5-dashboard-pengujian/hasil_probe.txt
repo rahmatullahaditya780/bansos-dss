@@ -1,0 +1,119 @@
+PROBE PRA-FASE 5 — dashboard, penjelasan & instrumen pengujian
+Basis data : D:\Apps\Gilang\bansos-dss\bansos_dss.db
+Tier 3     : fuzzy-topsis-chen2000-v1 / cfg provisional-1
+
+----------------------------------------------------------------------------------------
+0. Populasi yang dapat dipakai
+----------------------------------------------------------------------------------------
+pengajuan total          : 2020
+sudah dianalisis (Tier 2): 300
+versi Tier 1 pada baris  : {'indobert-p1-augmentasi-v3': 300}
+versi Tier 2 pada baris  : {'tier2-random-forest-sintetis-v1': 300}
+
+----------------------------------------------------------------------------------------
+1. Skew: label penjelasan (explanation.py) vs label fuzzy (Fase 4)
+----------------------------------------------------------------------------------------
+Fase 4 membangun KriteriaFuzzy.label() eksplisit sebagai 'satu sumber untuk fuzzifikasi
+DAN label penjelasan' (README Fase 4). Pertanyaannya: apakah penjelasan memakainya?
+
+[pendapatan] tidak sepakat: 40/300 (13.3%)
+       penjelasan=sedang         fuzzy=sedang           111
+       penjelasan=tinggi         fuzzy=tinggi            87
+       penjelasan=rendah         fuzzy=rendah            48
+    != penjelasan=tinggi         fuzzy=sedang            30
+       penjelasan=sangat rendah  fuzzy=sangat_rendah     14
+    != penjelasan=sangat rendah  fuzzy=rendah            10
+
+[housing_need] tidak sepakat: 211/300 (70.3%)
+    != penjelasan=cukup          fuzzy=buruk             70
+       penjelasan=buruk          fuzzy=buruk             55
+    != penjelasan=buruk          fuzzy=sangat_buruk      54
+    != penjelasan=baik           fuzzy=cukup             50
+    != penjelasan=baik           fuzzy=layak             37
+       penjelasan=cukup          fuzzy=cukup             34
+
+[skor_urgensi] tidak sepakat: 174/300 (58.0%)
+    != penjelasan=rendah         fuzzy=sangat_rendah    168
+       penjelasan=tinggi         fuzzy=tinggi           126
+    != penjelasan=tinggi         fuzzy=sedang             6
+
+Catatan: label fuzzy untuk skor_urgensi dihitung pada SKALA LOGIT (config Fase 4),
+sedangkan explanation.kategori_urgensi() memotong probabilitas di 0,5.
+
+----------------------------------------------------------------------------------------
+2. Daya beda kalimat penjelasan (OI-07)
+----------------------------------------------------------------------------------------
+kalimat alasan dibuat    : 300
+kalimat berbeda          : 196 (65.3%)
+pola frasa berbeda       : 116 (setelah membuang angka probabilitas)
+nilai frasa urgensi      : {'tinggi': 132, 'rendah': 168}
+
+contoh 3 kalimat:
+    - Pendapatan per kapita kategori sedang; 4 tanggungan; kondisi rumah cukup; narasi menunjukkan urgensi tinggi. Model memprediksi LAYAK (probabilitas 0.97).
+    - Pendapatan per kapita kategori tinggi; 1 tanggungan; kondisi rumah baik; narasi menunjukkan urgensi rendah; memiliki aset produktif. Model memprediksi TIDAK LAYAK (probabilitas 0.00).
+    - Pendapatan per kapita kategori sedang; 3 tanggungan; kondisi rumah cukup; narasi menunjukkan urgensi tinggi. Model memprediksi TIDAK LAYAK (probabilitas 0.48).
+
+Yang TIDAK muncul di kalimat mana pun:
+    - posisi Tier 3 / nilai preferensi       muncul di 0/300 kalimat
+    - versi model yang memutuskan            muncul di 0/300 kalimat
+    - kontribusi relatif tiap kriteria       muncul di 0/300 kalimat
+
+----------------------------------------------------------------------------------------
+3. Cakupan instrumen waktu (FR-25) — bagian mana yang tercatat
+----------------------------------------------------------------------------------------
+baris log_pengujian      : 305
+durasi tercatat          : n=305 min=5 p50=196 p90=214 max=13998 (ms)
+permintaan <= 5 detik    : 99.67%
+efisiensi (Bab 9.2) p50  : 100.0%  | max: 35.72%
+melanggar 5 detik        : 1 -> [13998]
+5 log paling awal (ms)   : [17, 5, 5, 7, 7]  <- pemuatan artefak masuk hitungan
+tanpa permintaan pertama : n=304 p50=196 max=13998 ms, <=5s 99.67%
+
+Tier 3 rank_topsis()     : 145 alternatif dalam 20 ms — TIDAK tercatat di log_pengujian mana pun
+Artinya angka efisiensi yang dilaporkan hari ini hanya mencakup Tier 1 + Tier 2.
+
+----------------------------------------------------------------------------------------
+4. Kesiapan efektivitas (OI-18, target >=85%)
+----------------------------------------------------------------------------------------
+log dengan hasil_sistem  : 305
+log dengan hasil_manual  : 0
+pasangan lengkap         : 0
+efektivitas terhitung    : None
+pengajuan berlog ganda   : 5 (analisis ulang membuat baris log BARU)
+
+Simulasi urutan kerja petugas yang wajar (tanpa menyentuh basis data):
+  a) analisis -> log#1 (sistem=layak)
+  b) verifikasi manual -> log#1 (manual=tidak_layak)   [pasangan terbentuk]
+  c) analisis ulang    -> log#2 (sistem=tidak_layak, manual=None)
+  efektivitas dihitung dari pasangan: 0.0% -> memakai putusan sistem LAMA, bukan yang sekarang tampil di layar
+
+Urutan sebaliknya (verifikasi dulu, analisis kemudian):
+  a) verifikasi -> log#1 (manual=layak, sistem=None)
+  b) analisis   -> log#2 (sistem=layak, manual=None)
+  efektivitas: None -> pasangan tidak pernah terbentuk, verifikasi hilang tanpa peringatan
+
+----------------------------------------------------------------------------------------
+5. Biaya instrumen: ringkasan() dipanggil tiap 5 detik oleh dashboard
+----------------------------------------------------------------------------------------
+ringkasan() rata-rata    : 9.3 ms pada 305 baris log
+Bentuk kuerinya memuat SELURUH baris log_pengujian ke memori tiap panggilan (select tanpa agregasi).
+Perkiraan pada 10.000 baris: ~306 ms per polling, dua kali per 10 detik per petugas yang membuka dashboard.
+
+----------------------------------------------------------------------------------------
+6. Biaya halaman /daftar — dirender tanpa penyaring & tanpa paginasi
+----------------------------------------------------------------------------------------
+baris dirender           : 2020
+kueri                    : 26 ms (memuat seluruh tabel)
+render Jinja             : 1775 ms
+ukuran HTML              : 833 KiB
+Belum ada paginasi, penyaring status, maupun pencarian NIK/nama pada rute /daftar.
+
+----------------------------------------------------------------------------------------
+RINGKASAN
+----------------------------------------------------------------------------------------
+- Skew label penjelasan vs fuzzy : pendapatan 13.3%, rumah 70.3%, urgensi 58.0%
+- Kalimat alasan berbeda         : 196/300
+- Tier 3 di luar instrumen waktu : 20 ms tidak tercatat
+- Pasangan efektivitas tersedia  : 0 -> metrik tidak dapat dilaporkan
+- ringkasan() per polling        : 9.3 ms, O(n) terhadap baris log
+- /daftar                        : 2020 baris, 833 KiB, 1801 ms tanpa paginasi

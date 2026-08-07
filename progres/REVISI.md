@@ -8,6 +8,43 @@ perbaikan bug penting, penggantian pustaka/versi, dan hasil pengujian yang mengu
 
 ---
 
+## 2026-08-08 — Gerbang Fase 5: evaluasi lintas-fase + probe pra-Fase 5
+
+**Dibuat:** [evaluasi-pra-fase-5.md](evaluasi-pra-fase-5.md) (tinjauan Fase 0–4),
+[`probe_dashboard_metrik.py`](fase-5-dashboard-pengujian/probe_dashboard_metrik.py) +
+[`hasil_probe.txt`](fase-5-dashboard-pengujian/hasil_probe.txt), dan README Fase 5 ditulis ulang
+dengan enam keputusan rancangan terkunci. Verifikasi: **82 tes lulus**; ketiga tier terverifikasi
+**pada baris basis data** (`indobert-p1-augmentasi-v3`, `tier2-random-forest-sintetis-v1`,
+`fuzzy-topsis-chen2000-v1`/`provisional-1`, seluruhnya `fallback_aktif=False`); git bersih, enam
+commit, tidak ada tindakan tertunggak dari evaluasi sebelumnya.
+
+**Temuan probe (300 hasil analisis nyata, 305 baris log, 2.020 pengajuan):**
+- **Penjelasan bertentangan dengan metode yang menghasilkan peringkat.** `explanation.py` masih
+  memakai ambang keras Fase 0, sementara `KriteriaFuzzy.label()` yang dibangun Fase 4 sebagai "satu
+  sumber untuk fuzzifikasi *dan* penjelasan" tidak dipakai: skew **70,3%** pada kondisi rumah,
+  **58,0%** pada urgensi (penjelasan memotong probabilitas di 0,5 padahal Tier 3 memakai skala
+  logit), **13,3%** pada pendapatan.
+- **Tier 3 tidak diterangkan sama sekali** — 0/300 kalimat menyebut peringkat, versi model, atau
+  kontribusi kriteria. Bahannya sudah dihitung: `RankingEntry.keanggotaan`/jarak/`seri_dengan`
+  dibuang `pipeline.jalankan_ranking()` sebelum disimpan.
+- **Instrumen waktu mengukur separuh pipeline.** p50 196 ms, tetapi satu-satunya pelanggaran 5 detik
+  (13.998 ms) adalah **cold start** pemuatan IndoBERT — permintaan berikutnya 209 ms. Tier 3 (~20 ms
+  untuk 145 alternatif) tidak pernah tercatat, dan rumus resmi Bab 9.2 `hitung_efisiensi()` **tidak
+  dipanggil dari mana pun**.
+- **Efektivitas: 0 pasangan dari 305 log, dan mekanismenya cacat.** FR-26 hanya ada sebagai endpoint
+  — tidak satu pun template punya tombolnya. Verifikasi ditulis ke baris log *terbaru* sedangkan tiap
+  analisis membuat baris *baru*: analisis ulang membuat pasangan memakai putusan sistem lama (5
+  pengajuan sudah berlog ganda), dan verifikasi-sebelum-analisis hilang tanpa peringatan.
+- **Biaya halaman:** `ringkasan()` memuat seluruh tabel log tiap 5 detik (O(n)); `/daftar` merender
+  2.020 baris tanpa paginasi — 1.801 ms / 833 KiB dengan pola N+1; `/peringkat` hanya dapat dilihat
+  dengan **menjalankan batch baru** (145 baris tertulis tiap kali).
+- **UI masih mengaku Fase 0** ("Model tier masih *stub*", "TOPSIS crisp sebagai stub") dan tidak
+  menampilkan versi model maupun status fallback di mana pun.
+
+**Penyesuaian exit criteria Fase 5 (disengaja, tertulis di muka):** angka **efektivitas dipindahkan
+ke Fase 7**. Ia butuh petugas sungguhan, bukan sekadar data; yang dapat ditutup Fase 5 hanyalah
+instrumennya, dan metrik dari nol pasangan harus menolak tampil alih-alih menampilkan 0%/100%.
+
 ## 2026-08-07 — Fase 4: Tier 3 Fuzzy TOPSIS (SELESAI — fase Jalur A pertama yang tuntas tanpa data lokal)
 
 **Dibangun:** paket `ml/tier3/` (fungsi keanggotaan + fuzzifikasi derajat penuh, Chen 2000 lengkap,
