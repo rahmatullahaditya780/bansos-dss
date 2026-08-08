@@ -186,7 +186,16 @@ class UrgencyScorer:
         ]
 
     def info(self) -> dict[str, object]:
-        """Status pemuatan — dipakai untuk diagnostik/dokumentasi hasil."""
+        """Status pemuatan — dipakai untuk diagnostik/dokumentasi hasil.
+
+        Pemuatan sengaja **dipaksa** lebih dulu, menyamai `info()` Tier 2. Tanpa itu
+        `fallback_aktif` selalu `False` sebelum skoring pertama — persis kebalikan dari yang ingin
+        diketahui orang yang memanggilnya untuk memastikan artefak sudah terpasang. Perilaku lama
+        tercatat sebagai warisan sejak evaluasi pra-Fase 4 §2 dan **sempat membuat pemanasan
+        startup Fase 5 menjadi no-op untuk Tier 1**: aplikasi mengira sudah memanaskan model,
+        sementara permintaan pertama tetap menanggung 10 detik pemuatan.
+        """
+        self._muat()
         return {
             "model_path": str(self.model_path),
             "tersedia": self.tersedia(),

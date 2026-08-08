@@ -158,8 +158,13 @@ Durasi per tahap: **Tier 1 93 ms · Tier 2 96 ms** (per pengajuan) · **Tier 3 1
 untuk 145 alternatif. Satuan Tier 3 sengaja berbeda: ia merangking seluruh alternatif sekaligus,
 dan membaginya per pengajuan akan mengarang angka yang tidak pernah diukur.
 
-Pemanasan artefak saat startup menghapus cold start dari pengalaman petugas: baris `cold` di atas
-adalah permintaan pertama pada proses uji yang sengaja dijalankan tanpa pemanasan.
+Pemanasan artefak saat startup menghapus cold start dari pengalaman petugas — **setelah diperbaiki**,
+lihat cacat #4 di bawah. Terukur pada server sungguhan (`uvicorn`, permintaan pertama setelah start):
+
+| | Permintaan pertama | Penanda | Tier 1 |
+|---|---|---|---|
+| Pemanasan no-op (versi pertama) | **10.182 ms** | `cold` | 10.068 ms |
+| Pemanasan diperbaiki | **213 ms** | `warm` | 86 ms |
 
 ### Tabel 4 — halaman (D-05/D-06)
 
@@ -204,6 +209,14 @@ yang mengendap di basis data — kelas kontaminasi yang sudah tiga kali menggigi
 3. **Pemeriksaan cold/warm sempat merusak yang diukurnya.** `info_model()` Tier 2 memaksa pemuatan;
    memanggilnya untuk mendeteksi cold start memindahkan biaya muat ke luar rentang yang diukur.
    Ditambahkan `sudah_dimuat()` yang tidak memicu pemuatan.
+4. **Pemanasan startup ternyata no-op untuk Tier 1 — dan lolos dari seluruh 105 tes.** Versi pertama
+   mengandalkan efek samping `info_model()`; `info()` Tier 2 memang memaksa pemuatan, tetapi `info()`
+   Tier 1 tidak — persis item warisan yang tercatat sejak evaluasi pra-Fase 4 §2. Aplikasi start
+   tanpa keluhan, log pemanasan tercetak, dan permintaan pertama tetap **10.182 ms**. Yang
+   menyingkapnya bukan tes mana pun melainkan **menjalankan aplikasinya**. Diperbaiki dengan dua
+   langkah: `info()` Tier 1 kini memaksa pemuatan (menutup item warisan itu), dan pemanasan
+   menjalankan **inferensi sungguhan** per tier alih-alih mengandalkan efek samping — sehingga
+   tokenizer dan kernel torch ikut panas. Dua tes baru menjaga agar tidak diam-diam kembali no-op.
 
 ## Deliverable / Checklist
 
@@ -218,11 +231,13 @@ yang mengendap di basis data — kelas kontaminasi yang sudah tiga kali menggigi
 - [x] Badge versi model tiap tier + spanduk peringatan fallback di seluruh halaman (D-05)
 - [x] `/daftar` berpaginasi + penyaring + pencarian, N+1 dibunuh; `/peringkat` menampilkan batch tersimpan
 - [x] Teks "Fase 0 / stub" dibuang dari seluruh template
-- [x] Seluruh tes lama tetap lulus (**105 lulus**, sebelumnya 82)
+- [x] Seluruh tes lama tetap lulus (**107 lulus**, sebelumnya 82)
+- [x] Aplikasi dijalankan sungguhan (`uvicorn`) dan seluruh halaman diakses — bukan hanya lolos tes
 - [ ] Dashboard diperiksa nyata di smartphone (NFR-03) — kelas Bootstrap responsif sudah dipakai,
       **belum diuji di perangkat sungguhan**; masuk UAT Fase 7
 - [ ] *(menunggu Fase 7)* Angka efektivitas ≥85% terhadap verifikasi petugas sungguhan (OI-18)
-- [ ] *(warisan)* `ml/tier1/infer.py` — `info()` melaporkan `fallback_aktif: false` sebelum pemuatan pertama
+- [x] *(warisan, ditutup)* `ml/tier1/infer.py` — `info()` kini memaksa pemuatan seperti Tier 2;
+      perilaku lamanya ternyata bukan sekadar kosmetik, ia yang membuat pemanasan startup no-op
 
 ## Exit criteria
 

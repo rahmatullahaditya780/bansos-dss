@@ -233,6 +233,45 @@ def test_ranking_mencatat_durasi_batch_dan_bahan_penjelasan(client, petugas_head
         db.close()
 
 
+def test_pemanasan_benar_benar_memuat_kedua_artefak():
+    """Pemanasan startup harus membuat kedua tier `sudah_dimuat()`, bukan sekadar terlihat jalan.
+
+    Versi pertama Fase 5 mengandalkan efek samping `info_model()` dan ternyata **no-op untuk
+    Tier 1** — `info()`-nya waktu itu tidak memaksa pemuatan. Aplikasi start tanpa keluhan, log
+    pemanasan tercetak, dan permintaan pertama tetap menanggung 10.182 ms (terukur pada server
+    sungguhan). Yang menyingkapnya bukan tes mana pun, melainkan menjalankan aplikasinya.
+    """
+    from app.main import panaskan_model
+    from app.services import tier1_nlp, tier2_ml
+    from ml.tier1.infer import reset_scorer
+
+    reset_scorer()
+    assert tier1_nlp.sudah_dimuat() is False, "prasyarat: Tier 1 belum dimuat"
+
+    panaskan_model()
+
+    assert tier1_nlp.sudah_dimuat() is True, "pemanasan tidak memuat artefak Tier 1"
+    assert tier2_ml.sudah_dimuat() is True, "pemanasan tidak memuat artefak Tier 2"
+
+
+def test_analisis_setelah_pemanasan_bertanda_warm(client, petugas_headers):
+    """Konsekuensi yang benar-benar diinginkan: permintaan pertama tidak lagi tercatat cold."""
+    from app.main import panaskan_model
+
+    panaskan_model()
+    pid = client.post(
+        "/pengajuan", json=payload("7100000000000904"), headers=petugas_headers
+    ).json()["id"]
+    client.post(f"/analisis/{pid}", headers=petugas_headers)
+
+    db = SessionLocal()
+    try:
+        log = db.query(models.LogPengujian).filter_by(pengajuan_id=pid).first()
+        assert log.jenis_muat == "warm"
+    finally:
+        db.close()
+
+
 def test_waktu_mulai_log_wajar(client, petugas_headers, pengajuan_teranalisis):
     db = SessionLocal()
     try:

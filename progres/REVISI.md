@@ -16,7 +16,7 @@ perbaikan bug penting, penggantian pustaka/versi, dan hasil pengujian yang mengu
 `dashboard_service.py` (agregasi kolom + `status_model()`), halaman `/metrik`, paginasi &
 pencarian `/daftar`, `/peringkat` menampilkan batch tersimpan, tombol verifikasi di detail,
 pemanasan artefak saat startup, migrasi `9a1c4f7be210`, dan 23 tes baru
-(`test_penjelasan.py`, `test_metrik.py`). Tes: **105 lulus** (sebelumnya 82).
+(`test_penjelasan.py`, `test_metrik.py`). Tes: **107 lulus** (sebelumnya 82).
 
 **Keenam keputusan D-01…D-06 dijalankan sesuai rekomendasi.** Hasil terukur (probe yang sama
 dijalankan sebelum & sesudah — `hasil_probe.txt` vs `hasil_probe_setelah.txt`):
@@ -38,7 +38,15 @@ ke Fase 7. Uji ujung-ke-ujung sempat memakai 3 verifikasi buatan untuk membuktik
 bekerja; ketiganya **dihapus setelah verifikasi** agar tidak ada angka karangan mengendap di basis
 data.
 
-**Cacat yang tersingkap saat implementasi (ketiganya diperbaiki):**
+**Cacat yang tersingkap saat implementasi (keempatnya diperbaiki):**
+- **Pemanasan startup ternyata NO-OP untuk Tier 1 — dan lolos dari seluruh 105 tes.** Versi pertama
+  mengandalkan efek samping `info_model()`; `info()` Tier 2 memaksa pemuatan, `info()` Tier 1 tidak
+  (item warisan sejak evaluasi pra-Fase 4 §2). Aplikasi start tanpa keluhan, log pemanasan tercetak,
+  dan permintaan pertama di server sungguhan tetap **10.182 ms** (Tier 1 sendiri 10.068 ms).
+  Penyingkapnya bukan tes mana pun melainkan **menjalankan aplikasinya** lewat uvicorn. Setelah
+  diperbaiki (info() Tier 1 memaksa pemuatan + pemanasan menjalankan inferensi sungguhan per tier):
+  permintaan pertama **213 ms, bertanda `warm`**. Dua tes baru menjaga agar tidak kembali no-op;
+  item warisan Tier 1 ikut tertutup.
 - **`GET /metrik` API menutupi halaman web `/metrik`** — tabrakan rute yang sama persis dengan bug
   Fase 0 (`POST /analisis/ranking` vs `/{pengajuan_id}`). API dipindah ke `/metrik/ringkasan`.
 - **Penanda cold/warm nyaris jadi kebohongan statistik:** versi pertama memperlakukan 305 baris
