@@ -2,8 +2,8 @@
 {% block title %}Pengajuan #{{ p.id }} — DSS Bansos{% endblock %}
 {% block content %}
 <a href="/daftar" class="small text-decoration-none">&larr; Kembali ke daftar</a>
-<div class="d-flex justify-content-between align-items-center mb-3 mt-1">
-  <h1 class="h3 mb-0">Pengajuan #{{ p.id }}</h1>
+<div class="d-flex justify-content-between align-items-center mb-3 mt-1 flex-wrap gap-2">
+  <h1 class="page-title">Pengajuan #{{ p.id }}</h1>
   {% include "partials/_status_badge.html" %}
 </div>
 
@@ -38,7 +38,17 @@
           <dt class="col-5">Jenis Dinding</dt><dd class="col-7">{{ p.data_survei.jenis_dinding or '-' }}</dd>
           <dt class="col-5">Sumber Air</dt><dd class="col-7">{{ p.data_survei.sumber_air or '-' }}</dd>
         </dl>
-        {% else %}<span class="text-muted small">Data survei belum diisi.</span>{% endif %}
+        {% else %}<span class="small ink-3">Data survei belum diisi.</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        Verifikasi Manual Petugas
+        <span class="small ink-3">— bahan metrik efektivitas (Bab 9.3)</span>
+      </div>
+      <div class="card-body" id="verifikasi-box">
+        {% include "partials/_verifikasi.html" %}
       </div>
     </div>
   </div>
@@ -49,10 +59,10 @@
       <div class="card-body">
         {% for t in p.teks_naratif %}
         <div class="mb-2">
-          <span class="badge text-bg-light">{{ t.sumber }}</span>
+          <span class="pill pill-mute">{{ t.sumber }}</span>
           {{ t.isi_teks }}
         </div>
-        {% else %}<span class="text-muted small">Tidak ada narasi.</span>{% endfor %}
+        {% else %}<span class="small ink-3">Tidak ada narasi.</span>{% endfor %}
       </div>
     </div>
 
@@ -71,15 +81,6 @@
       </div>
     </div>
 
-    <div class="card mt-3">
-      <div class="card-header">
-        Verifikasi Manual Petugas
-        <span class="text-muted small">— bahan metrik efektivitas (Bab 9.3)</span>
-      </div>
-      <div class="card-body" id="verifikasi-box">
-        {% include "partials/_verifikasi.html" %}
-      </div>
-    </div>
   </div>
 </div>
 {% endblock %}

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Metrik Pengujian — DSS Bansos{% endblock %}
 {% block content %}
-<h1 class="h3 mb-1">Metrik Pengujian</h1>
-<p class="text-muted small">
+<h1 class="page-title">Metrik Pengujian</h1>
+<p class="page-sub">
   Efisiensi (TRD Bab 9.2) dan efektivitas (Bab 9.3) dihitung otomatis dari
   <code>log_pengujian</code> dan <code>verifikasi_manual</code>. Setiap angka disertai jumlah
   pengamatan yang menyusunnya.
@@ -12,7 +12,7 @@
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
     <span>Efisiensi waktu proses</span>
-    <span class="small text-muted">{{ eff.n_warm }} permintaan diukur</span>
+    <span class="small ink-3">{{ eff.n_warm }} permintaan diukur</span>
   </div>
   <div class="card-body">
     {% if eff.cukup_untuk_dilaporkan %}
@@ -21,35 +21,35 @@
         <div class="metric">
           <div class="metric-label">Efisiensi (Bab 9.2)</div>
           <div class="metric-value">{{ eff.efisiensi_persen | persen }}</div>
-          <div class="small text-muted">min(5&nbsp;dtk / aktual, 1) × 100%</div>
+          <div class="stat-context">min(5&nbsp;dtk / aktual, 1) × 100%</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="metric">
           <div class="metric-label">Permintaan &le; 5 detik</div>
           <div class="metric-value">{{ eff.persen_le_5s | persen }}</div>
-          <div class="small text-muted">NFR-01</div>
+          <div class="stat-context">NFR-01</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="metric">
           <div class="metric-label">Median (p50)</div>
           <div class="metric-value">{{ eff.p50_ms | milidetik }}</div>
-          <div class="small text-muted">p90 {{ eff.p90_ms | milidetik }} · maks {{ eff.maks_ms | milidetik }}</div>
+          <div class="stat-context">p90 {{ eff.p90_ms | milidetik }} · maks {{ eff.maks_ms | milidetik }}</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="metric">
           <div class="metric-label">Cold start dikecualikan</div>
           <div class="metric-value">{{ eff.n_cold }}</div>
-          <div class="small text-muted">
+          <div class="stat-context">
             {% if eff.cold_maks_ms %}terlama {{ eff.cold_maks_ms | milidetik }}{% else %}—{% endif %}
           </div>
         </div>
       </div>
     </div>
 
-    <div class="alert alert-light border small mt-3 mb-0">
+    <div class="alert alert-catatan mt-3 mb-0">
       <strong>Cara membaca angka di atas.</strong> Rumus Bab 9.2 dibatasi 100%, dan hampir seluruh
       permintaan berada jauh di bawah 5 detik — jadi rata-ratanya menjenuh dan hampir tidak punya
       daya beda. Distribusi (p50/p90/maks) yang sebenarnya informatif; rumus dilaporkan karena ia
@@ -60,26 +60,26 @@
     <div class="table-responsive mt-3">
       <table class="table table-sm mb-0">
         <thead>
-          <tr><th>Tahap</th><th>Median</th><th>Satuan pengukuran</th><th>Catatan</th></tr>
+          <tr><th>Tahap</th><th class="num">Median</th><th>Satuan pengukuran</th><th>Catatan</th></tr>
         </thead>
         <tbody>
           <tr>
-            <td>Tier 1 · IndoBERT</td>
-            <td>{{ eff.tier1_p50_ms | milidetik }}</td>
+            <td class="col-tahap">Tier 1 · IndoBERT</td>
+            <td class="num">{{ eff.tier1_p50_ms | milidetik }}</td>
             <td>per pengajuan</td>
-            <td class="small text-muted">seluruh narasi satu pengajuan, satu forward pass</td>
+            <td class="small ink-3">seluruh narasi satu pengajuan, satu forward pass</td>
           </tr>
           <tr>
-            <td>Tier 2 · Klasifikasi</td>
-            <td>{{ eff.tier2_p50_ms | milidetik }}</td>
+            <td class="col-tahap">Tier 2 · Klasifikasi</td>
+            <td class="num">{{ eff.tier2_p50_ms | milidetik }}</td>
             <td>per pengajuan</td>
-            <td class="small text-muted">—</td>
+            <td class="small ink-3">—</td>
           </tr>
           <tr>
-            <td>Tier 3 · Fuzzy TOPSIS</td>
-            <td>{{ eff.tier3_p50_ms | milidetik }}</td>
+            <td class="col-tahap">Tier 3 · Fuzzy TOPSIS</td>
+            <td class="num">{{ eff.tier3_p50_ms | milidetik }}</td>
             <td><strong>per batch</strong></td>
-            <td class="small text-muted">
+            <td class="small ink-3">
               {{ eff.tier3_batch }} batch, terbesar {{ eff.tier3_maks_alternatif or '—' }} alternatif.
               Tier 3 merangking seluruh alternatif sekaligus — membaginya per pengajuan akan
               mengarang angka yang tidak pernah diukur.
@@ -96,7 +96,7 @@
     {% endif %}
 
     {% if eff.n_tak_bertanda %}
-    <div class="alert alert-light border small mt-3 mb-0">
+    <div class="alert alert-catatan mt-3 mb-0">
       <strong>{{ eff.n_tak_bertanda }} pengukuran lama dikeluarkan dari angka di atas.</strong>
       Baris yang dicatat sebelum Fase 5 tidak menyimpan penanda <em>cold</em>/<em>warm</em>
       (median {{ eff.p50_tak_bertanda_ms | milidetik }}, terlama
@@ -113,7 +113,7 @@
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
     <span>Efektivitas terhadap verifikasi manual</span>
-    <span class="small text-muted">target &ge; {{ efek.target_persen }}%</span>
+    <span class="small ink-3">target &ge; {{ efek.target_persen }}%</span>
   </div>
   <div class="card-body">
     {% if efek.persen is none %}
@@ -132,38 +132,41 @@
       <div class="col-6 col-md-3">
         <div class="metric">
           <div class="metric-label">Efektivitas</div>
-          <div class="metric-value {{ 'text-success' if efek.memenuhi_target else 'text-danger' }}">
+          <div class="metric-value">
             {{ efek.persen | persen }}
           </div>
-          <div class="small text-muted">{{ efek.tepat }} tepat dari {{ efek.pasangan }}</div>
+          <div class="stat-context">{{ efek.tepat }} tepat dari {{ efek.pasangan }}</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="metric">
           <div class="metric-label">Sistem layak, petugas tidak</div>
           <div class="metric-value">{{ efek.salah_positif }}</div>
-          <div class="small text-muted">bantuan berpotensi salah sasaran</div>
+          <div class="stat-context">bantuan berpotensi salah sasaran</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="metric">
           <div class="metric-label">Sistem tidak layak, petugas layak</div>
           <div class="metric-value">{{ efek.salah_negatif }}</div>
-          <div class="small text-muted">berpotensi terlewat</div>
+          <div class="stat-context">berpotensi terlewat</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="metric">
           <div class="metric-label">Status target</div>
           <div class="metric-value">
-            {% if efek.memenuhi_target %}<span class="text-success">Tercapai</span>
-            {% else %}<span class="text-danger">Belum</span>{% endif %}
+            {% if efek.memenuhi_target %}
+              <span class="pill pill-good"><i class="bi bi-check-circle-fill"></i> Tercapai</span>
+            {% else %}
+              <span class="pill pill-crit"><i class="bi bi-x-circle-fill"></i> Belum</span>
+            {% endif %}
           </div>
-          <div class="small text-muted">&ge; {{ efek.target_persen }}% (OI-18)</div>
+          <div class="stat-context">&ge; {{ efek.target_persen }}% (OI-18)</div>
         </div>
       </div>
     </div>
-    <div class="alert alert-light border small mt-3 mb-0">
+    <div class="alert alert-catatan mt-3 mb-0">
       <strong>Keterbatasan yang wajib ikut dilaporkan (OI-18).</strong> Model dilatih pada
       keputusan petugas dan dinilai oleh petugas. Angka ini mengukur <em>kesesuaian</em> dengan
       penilaian manusia, bukan ketepatan terhadap kebenaran yang berdiri sendiri.
@@ -185,10 +188,10 @@
           <td><code>{{ s.versi }}</code></td>
           <td>
             {% if s.fallback %}
-              <span class="badge text-bg-danger">cadangan aktif</span>
-              <span class="small text-muted">{{ s.keterangan }}</span>
+              <span class="pill pill-crit"><i class="bi bi-exclamation-octagon-fill"></i> cadangan aktif</span>
+              <span class="small ink-3">{{ s.keterangan }}</span>
             {% else %}
-              <span class="badge text-bg-success">artefak asli</span>
+              <span class="pill pill-good"><i class="bi bi-check-circle-fill"></i> artefak asli</span>
             {% endif %}
           </td>
         </tr>
@@ -196,7 +199,7 @@
       </tbody>
     </table>
   </div>
-  <div class="card-footer small text-muted">
+  <div class="card-footer small ink-3">
     Angka apa pun di halaman ini tidak sah bila salah satu tier memakai jalur cadangan — hasilnya
     bukan keluaran metode yang dievaluasi.
   </div>

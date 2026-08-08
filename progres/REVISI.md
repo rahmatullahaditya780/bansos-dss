@@ -8,6 +8,36 @@ perbaikan bug penting, penggantian pustaka/versi, dan hasil pengujian yang mengu
 
 ---
 
+## 2026-08-08 — Fase 5 (lanjutan): sistem visual dashboard dikerjakan ulang
+
+**Pemicu:** dashboard selesai secara fungsi tetapi lemah secara tampilan. Ditimbang lebih dulu
+apakah pindah ke Laravel; **ditolak** — TRD Bab 3.3 dan Fokus Penelitian (e) di proposal menyebut
+"antarmuka web FastAPI" secara eksplisit, jadi menukarnya mengubah fokus penelitian, bukan sekadar
+tumpukan teknologi. Laravel pun hanya bisa jadi klien API (Python memegang IndoBERT, scikit-learn,
+scikit-fuzzy), menambah satu runtime saat deploy, dan menulis ulang seluruh UI yang baru selesai.
+
+**Aturan warna yang sekarang berlaku (dihitung dengan validator, bukan dikira):**
+- Hijau merek `#1f6f54` **berhenti dipakai sebagai warna data** — chroma 0,088, di bawah lantai;
+  sebagai mark ia terbaca abu. Hijau untuk chrome saja.
+- Mark data memakai ramp ordinal tervalidasi `#6da7ec → #3987e5 → #256abf → #184f95` pada surface
+  `#f7f8f7`. Kandidat pertama gagal di 1,98:1 (lantai 2:1) dan diganti satu langkah lebih gelap.
+- Status selalu ikon + kata; kuning status 1,72:1 sehingga warna tak pernah berdiri sendiri. Angka
+  berhenti diwarnai — identitas dibawa titik di sampingnya.
+
+**Struktur:** satu angka memimpin dashboard, lalu baris KPI, lalu strip kinerja yang dipisahkan.
+Penanda versi model jadi bagian tetap kaki halaman.
+
+**Dua cacat encoding yang hanya tersingkap setelah halamannya dirender dan dilihat** (validator
+memeriksa warna, bukan pemetaannya): ramp meter terbalik — bobot 35% mendapat langkah paling terang
+dan 20% paling gelap; dan panjang batang sempat dinormalisasi ke bobot terbesar sehingga
+melebih-lebihkan selisih. Keduanya diperbaiki. Pengulangan pelajaran hari yang sama: yang
+menyingkapkan bukan tes hijau, melainkan menjalankan dan melihatnya.
+
+**Kebersihan data:** 3 pengajuan sempat berstatus `diverifikasi` tanpa baris `verifikasi_manual`
+(sisa uji jalur efektivitas yang barisnya sudah dihapus); statusnya dikembalikan ke `dianalisis`.
+
+Tes tetap **107 lulus**.
+
 ## 2026-08-08 — Fase 5: Dashboard, Penjelasan & Instrumen Pengujian (SELESAI)
 
 **Dibangun:** `app/services/verifikasi.py` (perekaman verifikasi + snapshot putusan yang dinilai),

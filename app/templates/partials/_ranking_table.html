@@ -1,16 +1,17 @@
 {% if hasil and hasil.ranking %}
-<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2 small text-muted">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3 small ink-3">
   <div>
     Batch <code>{{ hasil.batch_id }}</code> · {{ hasil.jumlah_alternatif }} alternatif (pengajuan layak)
-    {% if hasil.tersimpan %}<span class="badge text-bg-light border">tersimpan — tidak dihitung ulang</span>{% endif %}
+    {% if hasil.tersimpan %}<span class="pill pill-mute"><i class="bi bi-archive"></i> tersimpan — tidak dihitung ulang</span>{% endif %}
   </div>
   <div class="text-end">
     {% if hasil.versi_metode %}
-      <span class="badge text-bg-{{ 'danger' if 'fallback' in hasil.versi_metode else 'light' }} border">
-        {{ hasil.versi_metode }}</span>
+      <span class="tag-versi">
+        {% if 'fallback' in hasil.versi_metode %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--st-crit)"></i>
+        {% else %}<span class="dot dot-good"></span>{% endif %}{{ hasil.versi_metode }}</span>
     {% endif %}
-    {% if hasil.versi_konfigurasi %}<span class="badge text-bg-light border">cfg {{ hasil.versi_konfigurasi }}</span>{% endif %}
-    {% if hasil.durasi_ms is not none %}<span class="badge text-bg-light border">{{ hasil.durasi_ms | milidetik }} / batch</span>{% endif %}
+    {% if hasil.versi_konfigurasi %}<span class="tag-versi">cfg {{ hasil.versi_konfigurasi }}</span>{% endif %}
+    {% if hasil.durasi_ms is not none %}<span class="tag-versi">{{ hasil.durasi_ms | milidetik }} / batch</span>{% endif %}
   </div>
 </div>
 
@@ -22,33 +23,33 @@
 {% endif %}
 
 <div class="table-responsive">
-  <table class="table table-striped mb-0">
+  <table class="table table-hover mb-0">
     <thead>
       <tr>
-        <th>#</th><th>Pengajuan</th><th>Warga</th><th>Nilai Preferensi</th>
-        <th>Skor Urgensi</th><th>Kategori kriteria</th>
+        <th>#</th><th>Pengajuan</th><th>Warga</th><th class="num">Nilai preferensi</th>
+        <th class="num">Skor urgensi</th><th>Kategori kriteria</th>
       </tr>
     </thead>
     <tbody>
       {% for it in hasil.ranking %}
       <tr>
         <td>
-          <span class="badge text-bg-success">{{ it.peringkat }}</span>
+          <span class="rank">{{ it.peringkat }}</span>
           {% if it.seri_dengan %}
-          <span class="badge text-bg-warning" title="Nilai preferensi identik dengan {{ it.seri_dengan }} pengajuan lain; urutan diputus aturan tiebreak tercatat">
-            seri {{ it.seri_dengan }}</span>
+          <span class="pill pill-warn" title="Nilai preferensi identik dengan {{ it.seri_dengan }} pengajuan lain; urutan diputus aturan tiebreak tercatat">
+            <i class="bi bi-exclamation-triangle-fill"></i> seri {{ it.seri_dengan }}</span>
           {% endif %}
         </td>
         <td><a href="/detail/{{ it.pengajuan_id }}" class="text-decoration-none">#{{ it.pengajuan_id }}</a></td>
-        <td>{{ it.warga_nama }}</td>
-        <td>{{ it.nilai_preferensi | skor }}</td>
-        <td>{{ it.skor_urgensi | skor }}</td>
-        <td class="small text-muted">
+        <td class="fw-medium">{{ it.warga_nama }}</td>
+        <td class="num">{{ it.nilai_preferensi | skor }}</td>
+        <td class="num">{{ it.skor_urgensi | skor }}</td>
+        <td class="small">
           {% if it.keanggotaan %}
             {% for k, v in it.keanggotaan.items() %}
-            <span class="badge text-bg-light border">{{ k | label_rapi }}: {{ v | label_rapi }}</span>
+            <span class="pill pill-mute">{{ k | label_rapi }}: {{ v | label_rapi }}</span>
             {% endfor %}
-          {% else %}—{% endif %}
+          {% else %}<span class="ink-3">—</span>{% endif %}
         </td>
       </tr>
       {% endfor %}

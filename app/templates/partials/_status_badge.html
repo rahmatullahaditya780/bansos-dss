@@ -1,4 +1,10 @@
-{% if p.status == 'baru' %}<span class="badge text-bg-secondary">Baru</span>
-{% elif p.status == 'dianalisis' %}<span class="badge text-bg-info">Dianalisis</span>
-{% elif p.status == 'diverifikasi' %}<span class="badge text-bg-success">Diverifikasi</span>
-{% else %}<span class="badge text-bg-light">{{ p.status }}</span>{% endif %}
+{# Status selalu ikon + kata, tidak pernah warna saja. #}
+{% if p.status == 'baru' %}
+  <span class="pill pill-mute"><i class="bi bi-circle"></i> Baru</span>
+{% elif p.status == 'dianalisis' %}
+  <span class="pill pill-mute"><span class="dot dot-data"></span> Dianalisis</span>
+{% elif p.status == 'diverifikasi' %}
+  <span class="pill pill-good"><i class="bi bi-check-circle-fill"></i> Diverifikasi</span>
+{% else %}
+  <span class="pill pill-mute">{{ p.status }}</span>
+{% endif %}

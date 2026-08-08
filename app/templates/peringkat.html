@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Peringkat Prioritas — DSS Bansos{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-  <h1 class="h3 mb-0">Peringkat Prioritas</h1>
+<div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
+  <div>
+    <h1 class="page-title">Peringkat Prioritas</h1>
+    <p class="page-sub">Fuzzy TOPSIS Chen (2000) — hanya pengajuan yang lolos Tier 2 (OI-15)</p>
+  </div>
   <button class="btn btn-primary"
           hx-post="/peringkat/run" hx-target="#rank-box" hx-swap="innerHTML" hx-indicator="#spin2"
           hx-confirm="Jalankan perangkingan baru? Ini membuat batch baru; batch lama tetap tersimpan.">
@@ -10,19 +13,19 @@
     <i class="bi bi-arrow-repeat"></i> Jalankan Perangkingan Baru
   </button>
 </div>
-<p class="text-muted small">
-  Fuzzy TOPSIS Chen (2000) — Tier 3. Hanya pengajuan yang diprediksi <strong>layak</strong> oleh
-  Tier 2 yang dirangking (OI-15). Bobot &amp; fungsi keanggotaan dari
-  <code>config/fuzzy_config.yaml</code>; keduanya masih <em>provisional</em> sampai disepakati
-  Kelurahan (OI-12/OI-13, Fase 6).
-</p>
+<div class="alert alert-catatan">
+  <i class="bi bi-info-circle"></i>
+  Bobot &amp; fungsi keanggotaan dibaca dari <code>config/fuzzy_config.yaml</code> dan masih
+  <em>provisional</em> sampai disepakati Kelurahan (OI-12/OI-13, Fase 6).
+</div>
 
 <div class="card">
   <div class="card-body" id="rank-box">
     {% if hasil %}
       {% include "partials/_ranking_table.html" %}
     {% else %}
-      <div class="text-muted">
+      <div class="empty-state">
+        <i class="bi bi-trophy"></i>
         Belum ada batch perangkingan tersimpan. Klik <strong>Jalankan Perangkingan Baru</strong>.
       </div>
     {% endif %}

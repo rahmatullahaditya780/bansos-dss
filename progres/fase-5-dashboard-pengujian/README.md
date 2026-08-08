@@ -233,11 +233,38 @@ yang mengendap di basis data — kelas kontaminasi yang sudah tiga kali menggigi
 - [x] Teks "Fase 0 / stub" dibuang dari seluruh template
 - [x] Seluruh tes lama tetap lulus (**107 lulus**, sebelumnya 82)
 - [x] Aplikasi dijalankan sungguhan (`uvicorn`) dan seluruh halaman diakses — bukan hanya lolos tes
-- [ ] Dashboard diperiksa nyata di smartphone (NFR-03) — kelas Bootstrap responsif sudah dipakai,
-      **belum diuji di perangkat sungguhan**; masuk UAT Fase 7
+- [x] Sistem visual dikerjakan ulang (lihat bagian "Pembenahan tampilan")
+- [ ] Dashboard diperiksa di smartphone **sungguhan** (NFR-03) — tata letak sudah diverifikasi pada
+      viewport 430 px lewat peramban headless, tetapi belum pada perangkat nyata; masuk UAT Fase 7
 - [ ] *(menunggu Fase 7)* Angka efektivitas ≥85% terhadap verifikasi petugas sungguhan (OI-18)
 - [x] *(warisan, ditutup)* `ml/tier1/infer.py` — `info()` kini memaksa pemuatan seperti Tier 2;
       perilaku lamanya ternyata bukan sekadar kosmetik, ia yang membuat pemanasan startup no-op
+
+## Pembenahan tampilan (2026-08-08, setelah dashboard dijalankan dan dilihat)
+
+Dashboard yang selesai secara fungsi ternyata lemah secara visual. Yang dikerjakan bukan
+"dipercantik", melainkan diberi aturan yang dapat diperiksa:
+
+- **Hijau merek berhenti menjadi warna data.** Validator palet melaporkan `#1f6f54` berchroma
+  0,088 — di bawah lantai; sebagai mark data ia terbaca abu. Hijau kini untuk chrome saja
+  (navbar, tombol, tautan). Efek sampingnya berguna: batang data tidak pernah tertukar dengan tombol.
+- **Ramp data divalidasi, bukan dikira-kira:** `#6da7ec → #3987e5 → #256abf → #184f95` di atas
+  surface `#f7f8f7` — monotonik, jarak ΔL ≥ 0,06, ujung terang 2,35:1. Kandidat pertama
+  (mulai `#86b6ef`) **gagal** di 1,98:1 dan diganti satu langkah lebih gelap.
+- **Hierarki:** satu angka memimpin dashboard, lalu baris KPI, lalu strip kinerja yang terpisah
+  karena menjawab pertanyaan berbeda — bukan "berapa banyak" melainkan "apakah sistemnya memadai".
+  Sebelumnya delapan kartu berbobot sama dan tidak ada yang memimpin.
+- **Status tidak pernah warna saja.** Tiap pil membawa ikon + kata; kuning status hanya 1,72:1 di
+  atas surface ini, dan pasangan ikon+kata itulah mitigasinya. Angka berhenti diwarnai — identitas
+  dibawa titik berwarna di sampingnya.
+- **Penanda versi jadi bagian tetap kaki halaman**, bukan badge yang menumpang.
+
+Dua cacat encoding yang hanya tersingkap setelah halamannya **dirender dan dilihat**:
+
+1. **Ramp meter terbalik.** Bobot 35% mendapat biru paling terang dan 20% paling gelap — warna
+   melawan panjang batangnya. Validator tidak menangkap ini; ia memeriksa warna, bukan pemetaannya.
+2. **Panjang batang sempat dinormalisasi ke bobot terbesar**, yang melebih-lebihkan selisih antar
+   kriteria. Sekarang panjangnya bobot itu sendiri (bobot berjumlah 1,0).
 
 ## Exit criteria
 

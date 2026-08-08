@@ -1,59 +1,110 @@
+{# Hierarki dashboard: satu angka memimpin (yang menuntut tindakan), lalu putusan
+   yang sudah diambil, lalu kinerja sistem. Sebelumnya delapan kartu berbobot sama
+   dan tidak ada yang memimpin. #}
 <div class="row g-3">
-  <div class="col-6 col-md-3">
-    <div class="card stat stat-accent"><div class="card-body">
-      <div class="stat-label">Total Pengajuan</div><div class="stat-value">{{ r.total_pengajuan }}</div>
-    </div></div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat"><div class="card-body">
-      <div class="stat-label">Baru</div><div class="stat-value">{{ r.baru }}</div>
-    </div></div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat"><div class="card-body">
-      <div class="stat-label">Dianalisis</div><div class="stat-value">{{ r.dianalisis }}</div>
-    </div></div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat"><div class="card-body">
-      <div class="stat-label">Diverifikasi</div><div class="stat-value">{{ r.diverifikasi }}</div>
-    </div></div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat"><div class="card-body">
-      <div class="stat-label">Prediksi Layak</div><div class="stat-value text-success">{{ r.layak }}</div>
-    </div></div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat"><div class="card-body">
-      <div class="stat-label">Tidak Layak</div><div class="stat-value text-danger">{{ r.tidak_layak }}</div>
-    </div></div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat"><div class="card-body">
-      <div class="stat-label">Median Durasi</div>
-      <div class="stat-value">{{ r.p50_durasi_ms | milidetik }}</div>
-      <div class="small text-muted">
-        {% if r.permintaan_cold %}{{ r.permintaan_cold }} cold start dikecualikan{% else %}permintaan warm{% endif %}
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="hero">
+        <div>
+          <div class="hero-label">Menunggu analisis</div>
+          <div class="hero-figure">{{ r.baru }}</div>
+        </div>
+        <div class="hero-context">
+          dari {{ r.total_pengajuan }} pengajuan<br>
+          <a href="/daftar?status_filter=baru" class="small">Buka daftarnya &rarr;</a>
+        </div>
       </div>
-    </div></div>
+    </div>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="card stat"><div class="card-body">
-      <div class="stat-label">Permintaan &le;5s</div><div class="stat-value">{{ r.persen_le_5s | persen }}</div>
-      <div class="small text-muted">efisiensi {{ r.efisiensi_persen | persen }}</div>
-    </div></div>
+
+  <div class="col-lg-7">
+    <div class="row g-3 h-100">
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label"><span class="dot dot-data"></span>Dianalisis</div>
+          <div class="stat-value">{{ r.dianalisis }}</div>
+          <div class="stat-context">sudah lewat 3 tier</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label"><span class="dot dot-good"></span>Prediksi layak</div>
+          <div class="stat-value">{{ r.layak }}</div>
+          <div class="stat-context">masuk perangkingan</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label"><span class="dot dot-mute"></span>Tidak layak</div>
+          <div class="stat-value">{{ r.tidak_layak }}</div>
+          <div class="stat-context">tidak dirangking</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label"><span class="dot dot-data"></span>Diverifikasi</div>
+          <div class="stat-value">{{ r.diverifikasi }}</div>
+          <div class="stat-context">ditinjau petugas</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="mt-3 small text-muted">
-  {% if r.efektivitas_persen is not none %}
-    Efektivitas terhadap verifikasi manual: <strong>{{ r.efektivitas_persen | persen }}</strong>
-    dari {{ r.pasangan_verifikasi }} pasangan (target &ge;85%).
-  {% else %}
-    Efektivitas <strong>belum dapat dihitung</strong> — {{ r.pasangan_verifikasi }} pasangan
-    (putusan sistem, penilaian petugas) terekam. Rekam verifikasi manual di halaman detail
-    pengajuan; angkanya baru bermakna saat UAT (Fase 7).
-  {% endif %}
-  <a href="/metrik" class="text-decoration-none">Rincian metrik &rarr;</a>
+{# Strip kinerja — dipisahkan dari cacah pengajuan karena menjawab pertanyaan
+   yang berbeda: bukan "berapa banyak", melainkan "apakah sistemnya memadai". #}
+<div class="card mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Kinerja sistem</span>
+    <a href="/metrik" class="small text-decoration-none">Rincian metrik &rarr;</a>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-6 col-md-3">
+        <div class="metric">
+          <div class="metric-label">Median durasi</div>
+          <div class="metric-value">{{ r.p50_durasi_ms | milidetik }}</div>
+          <div class="stat-context">
+            {% if r.permintaan_cold %}{{ r.permintaan_cold }} cold start dikecualikan
+            {% else %}permintaan warm{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="metric">
+          <div class="metric-label">Permintaan &le; 5 detik</div>
+          <div class="metric-value">{{ r.persen_le_5s | persen }}</div>
+          <div class="stat-context">NFR-01</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="metric">
+          <div class="metric-label">Efisiensi (Bab 9.2)</div>
+          <div class="metric-value">{{ r.efisiensi_persen | persen }}</div>
+          <div class="stat-context">min(5&nbsp;dtk / aktual, 1)</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="metric">
+          <div class="metric-label">Efektivitas</div>
+          {% if r.efektivitas_persen is not none %}
+            <div class="metric-value">{{ r.efektivitas_persen | persen }}</div>
+            <div class="stat-context">{{ r.pasangan_verifikasi }} pasangan · target &ge;85%</div>
+          {% else %}
+            <div class="metric-value ink-3">—</div>
+            <div class="stat-context">belum dapat dihitung · {{ r.pasangan_verifikasi }} pasangan</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if r.efektivitas_persen is none %}
+    <div class="alert alert-catatan mt-3 mb-0">
+      <i class="bi bi-info-circle"></i>
+      Efektivitas sengaja tidak ditampilkan sebagai 0% — nol pasangan berarti belum pernah diuji,
+      bukan sistem selalu salah. Rekam penilaian manual di halaman detail pengajuan; angkanya baru
+      bermakna saat UAT bersama petugas Kelurahan.
+    </div>
+    {% endif %}
+  </div>
 </div>
