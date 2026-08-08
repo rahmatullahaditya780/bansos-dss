@@ -26,7 +26,14 @@ from dataclasses import dataclass
 from ml.tier1.infer import VERSI_FALLBACK, get_scorer
 from ml.tier1.preprocessing import preprocess  # FR-11 — re-ekspor, sumber tunggal
 
-__all__ = ["Tier1Output", "preprocess", "score_urgency", "score_urgency_batch", "info_model"]
+__all__ = [
+    "Tier1Output",
+    "preprocess",
+    "score_urgency",
+    "score_urgency_batch",
+    "info_model",
+    "sudah_dimuat",
+]
 
 
 @dataclass
@@ -53,6 +60,11 @@ def score_urgency_batch(texts: list[str]) -> list[Tier1Output]:
 def info_model() -> dict[str, object]:
     """Status model Tier 1 (path artefak, versi, apakah fallback aktif)."""
     return get_scorer().info()
+
+
+def sudah_dimuat() -> bool:
+    """True bila artefak sudah di memori, tanpa memicu pemuatan (penanda cold/warm, Fase 5)."""
+    return get_scorer().sudah_dimuat()
 
 
 # Nilai lama dipertahankan sebagai referensi versi fallback (dipakai di tes & dokumentasi).

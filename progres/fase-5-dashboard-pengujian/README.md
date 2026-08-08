@@ -1,7 +1,7 @@
 # Fase 5 — Dashboard, Penjelasan & Instrumen Pengujian
 
-**Jalur:** A · **Target:** minggu 9 · **Status:** 🔶 Siap dimulai (probe selesai 2026-08-08; menunggu
-persetujuan 6 keputusan rancangan)
+**Jalur:** A · **Target:** minggu 9 · **Status:** ✅ SELESAI (2026-08-08) — exit criteria terpenuhi;
+**angka efektivitas sengaja ditunda ke Fase 7** (butuh petugas sungguhan, bukan data)
 
 ## Tujuan
 
@@ -80,7 +80,7 @@ fallback.** Bila konfigurasi keanggotaan rusak dan Tier 3 turun ke `topsis-crisp
 akan tetap menampilkan angka serapi biasa — dan tiga kegagalan senyap proyek ini semuanya hanya
 tersingkap oleh penanda versi.
 
-## Keputusan rancangan (perlu persetujuan sebelum implementasi)
+## Keputusan rancangan (disetujui 2026-08-08, seluruhnya sesuai rekomendasi)
 
 Enam keputusan di bawah berasal langsung dari temuan di atas ([evaluasi §6](../evaluasi-pra-fase-5.md#6-keputusan-yang-harus-diambil-sebelum-menulis-kode-fase-5)).
 Tidak satu pun memerlukan data lokal.
@@ -116,21 +116,111 @@ Dua aturan yang sudah terbayar dan tetap berlaku di fase ini:
 | `app/templates/` | Halaman metrik (Bab 9.2/9.3); panel penjelasan per tier; badge versi model & fallback (D-05); teks "Fase 0" dibuang; `eager load` warga untuk membunuh N+1 |
 | `tests/test_metrik.py`, `tests/test_penjelasan.py` *(baru)* | Kesetaraan label penjelasan dengan label fuzzy; efisiensi warm/cold; pemasangan verifikasi tahan analisis ulang & tahan urutan terbalik; metrik menolak tampil pada masukan nol |
 
+## Hasil
+
+Seluruh angka di bawah berasal dari **kode yang terpasang**, diukur atas basis data yang sama yang
+melayani aplikasi. Probe yang sama dijalankan sebelum dan sesudah implementasi, sehingga kedua
+kolom dapat dibandingkan langsung: [`hasil_probe.txt`](hasil_probe.txt) →
+[`hasil_probe_setelah.txt`](hasil_probe_setelah.txt).
+
+### Tabel 1 — penjelasan sepakat dengan metode yang menghasilkan peringkat (D-01)
+
+| Kriteria | Skew sebelum | Skew sesudah |
+|---|---|---|
+| `pendapatan` | 40/300 (13,3%) | **0/300 (0,0%)** |
+| `housing_need` | 211/300 (70,3%) | **0/300 (0,0%)** |
+| `skor_urgensi` | 174/300 (58,0%) | **0/300 (0,0%)** |
+
+Nol itu dijaga tes, bukan sekadar tercapai sekali: `tests/test_penjelasan.py` menyapu kisi 2.352
+kombinasi nilai × 4 kriteria = **9.408 perbandingan label** di seluruh domain, termasuk perbatasan
+antar-himpunan. Bila seseorang menambahkan ambang keras lagi di kemudian hari, tes yang gagal.
+
+### Tabel 2 — isi penjelasan (OI-07)
+
+| | Sebelum | Sesudah |
+|---|---|---|
+| Kalimat berbeda dari 300 | 196 (65,3%) | **251 (83,7%)** |
+| Pola frasa berbeda | 116 | **130** |
+| Nilai frasa urgensi | 2 (tinggi/rendah) | **3** (tinggi 126 · sangat rendah 168 · sedang 6) |
+| Menyebut posisi Tier 3 | **0/300** | **146/300** (seluruh yang punya baris peringkat) |
+| Menyebut versi model Tier 1 & 2 | 0/300 | **300/300** |
+| Tabel kontribusi kriteria | tidak ada | **300/300** |
+
+### Tabel 3 — instrumen waktu (FR-25, D-02/D-03)
+
+| Populasi | n | p50 | maks | Perlakuan |
+|---|---|---|---|---|
+| `warm` | 7 | **204 ms** | 229 ms | Dasar metrik NFR-01: ≤5 detik **100%**, efisiensi Bab 9.2 **100%** |
+| `cold` | 1 | — | **11.922 ms** | Dipisahkan, **tidak disembunyikan** — biaya pemuatan artefak |
+| tanpa penanda (pra-Fase 5) | 305 | 196 ms | 13.998 ms | Dilaporkan terpisah; menebak penandanya = mengarang pengukuran |
+
+Durasi per tahap: **Tier 1 93 ms · Tier 2 96 ms** (per pengajuan) · **Tier 3 19 ms per batch**
+untuk 145 alternatif. Satuan Tier 3 sengaja berbeda: ia merangking seluruh alternatif sekaligus,
+dan membaginya per pengajuan akan mengarang angka yang tidak pernah diukur.
+
+Pemanasan artefak saat startup menghapus cold start dari pengalaman petugas: baris `cold` di atas
+adalah permintaan pertama pada proses uji yang sengaja dijalankan tanpa pemanasan.
+
+### Tabel 4 — halaman (D-05/D-06)
+
+| Halaman | Sebelum | Sesudah |
+|---|---|---|
+| `/daftar` | 2.020 baris, 833 KiB, **1.801 ms**, pola N+1 | 25 baris/halaman, 16,8 KiB, **49 ms**, `joinedload` |
+| `/peringkat` | selalu kosong; melihat hasil = **menjalankan batch baru** (145 baris tertulis tiap kali) | batch tersimpan ditampilkan, 114,9 KiB, 353 ms |
+| `/metrik` | tidak ada | ada, 8,9 KiB, 31 ms |
+| `ringkasan()` (polling 5 detik) | 9,3 ms | 9,5 ms **sambil menghitung jauh lebih banyak** |
+
+Baris terakhir jujur dilaporkan sebagai **imbang, bukan perbaikan**: pemuatan objek ORM diganti
+pengambilan kolom, tetapi jumlah kuerinya bertambah (efisiensi per tier, efektivitas, pencacahan
+cold). Biayanya tetap ± sama sementara yang dihitung bertambah banyak.
+
+### Efektivitas — instrumen selesai, angkanya tidak ada (dan itu benar)
+
+Tombol verifikasi kini ada di halaman detail; `verifikasi_manual` menyimpan **snapshot putusan
+sistem yang benar-benar dinilai** beserta versi modelnya, petugas penilainya, dan catatannya. Dua
+urutan kerja yang dulu merusak pasangan sekarang ditutup dan **diuji**: analisis ulang tidak
+membasikan pasangan, dan verifikasi-sebelum-analisis tidak lagi hilang tanpa pesan.
+
+Angkanya sendiri: **0 pasangan → metrik menolak tampil**, bukan 0%. Uji ujung-ke-ujung sempat
+dijalankan dengan 3 verifikasi buatan (menghasilkan 66,67%, 1 salah positif) untuk membuktikan
+jalurnya bekerja; ketiganya **dihapus setelah verifikasi** agar tidak ada angka efektivitas karangan
+yang mengendap di basis data — kelas kontaminasi yang sudah tiga kali menggigit proyek ini.
+
+### Verifikasi
+
+- **105 tes lulus** (sebelumnya 82; +23: `test_penjelasan.py` 8, `test_metrik.py` 15).
+- Migrasi `9a1c4f7be210` diterapkan ke basis data dev; 305 baris log lama utuh.
+- Ketiga tier terverifikasi pada baris DB, `fallback_aktif=False` seluruhnya.
+
+### Cacat yang tersingkap saat implementasi
+
+1. **Rute API `GET /metrik` menutupi halaman web `/metrik`** — router API terdaftar lebih dulu,
+   sehingga halaman metrik mengembalikan JSON. Ini **tabrakan yang sama persis** dengan bug Fase 0
+   antara `POST /analisis/ranking` dan `POST /analisis/{pengajuan_id}`. Endpoint API dipindah ke
+   `/metrik/ringkasan`, mengikuti pola `/dashboard` (web) vs `/dashboard/ringkasan` (API).
+2. **Penanda cold/warm nyaris menjadi kebohongan statistik.** Versi pertama memperlakukan 305 baris
+   pra-Fase 5 sebagai `warm`, sehingga cold start 13.998 ms masuk ke angka NFR-01 lewat pintu
+   belakang. Diperbaiki: baris tanpa penanda jadi populasi ketiga yang dilaporkan terpisah.
+3. **Pemeriksaan cold/warm sempat merusak yang diukurnya.** `info_model()` Tier 2 memaksa pemuatan;
+   memanggilnya untuk mendeteksi cold start memindahkan biaya muat ke luar rentang yang diukur.
+   Ditambahkan `sudah_dimuat()` yang tidak memicu pemuatan.
+
 ## Deliverable / Checklist
 
 - [x] Probe pra-fase: apakah tujuan Fase 5 tercapai di sistem yang ada → [`hasil_probe.txt`](hasil_probe.txt)
-- [ ] **D-01…D-06 disetujui** sebelum implementasi dimulai
-- [ ] Generator alasan memakai `KriteriaFuzzy.label()` — skew terhadap label fuzzy **0%**, diuji
-- [ ] Alasan mencakup ketiga tier, termasuk posisi & kriteria penyumbang Tier 3 (OI-07)
-- [ ] Durasi per tier tercatat (FR-25), Tier 3 termasuk; cold start terpisah dari warm
-- [ ] `hitung_efisiensi()` (Bab 9.2) tampil di dashboard, bukan kode mati
-- [ ] Tombol verifikasi manual di UI (FR-26) + pemasangan yang tahan analisis ulang (D-04)
-- [ ] Halaman metrik efisiensi/efektivitas; efektivitas menolak tampil selama 0 pasangan
-- [ ] Badge versi model tiap tier + peringatan fallback di UI (D-05)
-- [ ] `/daftar` berpaginasi + penyaring + pencarian; N+1 dibunuh; `/peringkat` menampilkan batch terakhir
-- [ ] Teks "Fase 0 / stub" dibuang dari seluruh template
-- [ ] Dashboard responsif desktop & smartphone diperiksa nyata (NFR-03)
-- [ ] Seluruh tes lama tetap lulus (**82** saat ini) + tes baru
+- [x] **D-01…D-06 disetujui** (2026-08-08, seluruhnya sesuai rekomendasi)
+- [x] Generator alasan memakai `KriteriaFuzzy.label()` — skew **0%**, dijaga 9.408 perbandingan
+- [x] Alasan mencakup ketiga tier, termasuk posisi & kriteria penyumbang Tier 3 (OI-07)
+- [x] Durasi per tier tercatat (FR-25); Tier 3 per batch di `log_ranking`; cold terpisah dari warm
+- [x] `hitung_efisiensi()` (Bab 9.2) tampil di dashboard & halaman metrik, bukan kode mati
+- [x] Tombol verifikasi manual di UI (FR-26) + pemasangan tahan analisis ulang & urutan terbalik (D-04)
+- [x] Halaman metrik efisiensi/efektivitas; efektivitas menolak tampil selama 0 pasangan
+- [x] Badge versi model tiap tier + spanduk peringatan fallback di seluruh halaman (D-05)
+- [x] `/daftar` berpaginasi + penyaring + pencarian, N+1 dibunuh; `/peringkat` menampilkan batch tersimpan
+- [x] Teks "Fase 0 / stub" dibuang dari seluruh template
+- [x] Seluruh tes lama tetap lulus (**105 lulus**, sebelumnya 82)
+- [ ] Dashboard diperiksa nyata di smartphone (NFR-03) — kelas Bootstrap responsif sudah dipakai,
+      **belum diuji di perangkat sungguhan**; masuk UAT Fase 7
 - [ ] *(menunggu Fase 7)* Angka efektivitas ≥85% terhadap verifikasi petugas sungguhan (OI-18)
 - [ ] *(warisan)* `ml/tier1/infer.py` — `info()` melaporkan `fallback_aktif: false` sebelum pemuatan pertama
 
@@ -147,13 +237,18 @@ dan menampilkannya dari nol pasangan akan menghasilkan angka yang menyesatkan. R
 "metrik efisiensi/efektivitas tampil dan terhitung otomatis dari `log_pengujian`"; setengahnya
 dipindahkan ke Fase 7 dengan alasan tertulis, bukan dibiarkan gagal diam-diam.
 
+→ **TERPENUHI** (2026-08-08), lihat [Hasil](#hasil).
+
 **Untuk klaim skripsi (Fase 7):** efektivitas ≥85% terhadap verifikasi petugas, dengan sirkularitas
 OI-18 (dilatih pada keputusan petugas, dinilai oleh petugas) ditulis sebagai keterbatasan.
 
 ## Alur reproduksi
 
 ```powershell
-# Probe pra-fase (arsip keputusan rancangan; ulangi setelah implementasi untuk membuktikan skew = 0)
+# Terapkan skema Fase 5 (durasi per tier, log_ranking, verifikasi_manual)
+python -m alembic upgrade head
+
+# Probe: dijalankan sebelum & sesudah implementasi; yang kedua membuktikan skew = 0
 python progres/fase-5-dashboard-pengujian/probe_dashboard_metrik.py
 
 # Verifikasi pemasangan ketiga tier sebelum percaya angka mana pun

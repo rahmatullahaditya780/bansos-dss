@@ -85,6 +85,15 @@ class EligibilityClassifier:
         """True bila artefak ada di disk (belum tentu sudah dimuat)."""
         return (self.model_path / NAMA_BERKAS_MODEL).exists()
 
+    def sudah_dimuat(self) -> bool:
+        """True bila artefak sudah berada di memori — **tanpa memicu pemuatan**.
+
+        Dipakai menandai baris log `cold`/`warm` (Fase 5, D-02). `info()` sengaja memaksa
+        pemuatan; memanggilnya untuk mengukur biaya pemuatan akan memindahkan biaya itu ke luar
+        rentang yang sedang diukur.
+        """
+        return self._model is not None
+
     @property
     def versi_model(self) -> str:
         if self._versi_model is None:

@@ -1,8 +1,6 @@
 """Endpoint hasil, ranking, ringkasan dashboard, dan verifikasi manual (TRD Bab 8)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,10 +11,12 @@ from app.db.session import get_db
 from app.schemas.hasil import (
     DashboardRingkasan,
     HasilResponse,
+    MetrikResponse,
     RankingItem,
     VerifikasiIn,
 )
 from app.services import dashboard_service, pipeline
+from app.services import verifikasi as verifikasi_service
 
 router = APIRouter(tags=["hasil"])
 
@@ -74,6 +74,28 @@ def dashboard_ringkasan(
     return dashboard_service.ringkasan(db)
 
 
+@router.get("/metrik/ringkasan", response_model=MetrikResponse)
+def metrik(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_petugas),
+) -> dict:
+    """Metrik efisiensi & efektivitas (TRD Bab 9.2/9.3) + status pemasangan model.
+
+    Jalurnya `/metrik/ringkasan`, bukan `/metrik`: yang terakhir milik halaman web. Rute API dan
+    rute web didaftarkan ke aplikasi yang sama, dan router API terdaftar lebih dulu — persis
+    tabrakan yang sudah pernah terjadi di Fase 0 antara `POST /analisis/ranking` dan
+    `POST /analisis/{pengajuan_id}`.
+
+    Efektivitas bernilai `null` selama belum ada pasangan verifikasi — bukan 0. Jumlah
+    pasangan selalu ikut, supaya pembaca tahu di atas berapa pengamatan angkanya berdiri.
+    """
+    return {
+        "efisiensi": dashboard_service.efisiensi(db),
+        "efektivitas": dashboard_service.efektivitas(db),
+        "status_model": dashboard_service.status_model(),
+    }
+
+
 @router.post("/verifikasi/{pengajuan_id}")
 def verifikasi(
     pengajuan_id: int,
@@ -81,22 +103,24 @@ def verifikasi(
     db: Session = Depends(get_db),
     user: models.User = Depends(require_petugas),
 ) -> dict:
-    """Rekam hasil verifikasi manual petugas (FR-26, bahan uji efektivitas)."""
+    """Rekam hasil verifikasi manual petugas (FR-26, bahan uji efektivitas).
+
+    Sejak Fase 5 penilaian disimpan di `verifikasi_manual` bersama **snapshot putusan sistem yang
+    dinilai** — bukan ditumpangkan ke baris `log_pengujian` terbaru, yang membuat pasangan
+    (sistem, manual) basi setelah analisis ulang atau hilang bila verifikasi mendahului analisis
+    (evaluasi pra-Fase 5 §5.4, D-04).
+    """
     p = db.get(models.Pengajuan, pengajuan_id)
     if p is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pengajuan tidak ditemukan")
 
-    if p.log_pengujian:
-        latest = max(p.log_pengujian, key=lambda log: log.waktu_mulai)
-        latest.hasil_manual_petugas = payload.hasil_manual
-    else:
-        db.add(
-            models.LogPengujian(
-                pengajuan_id=p.id,
-                waktu_mulai=datetime.now(timezone.utc),
-                hasil_manual_petugas=payload.hasil_manual,
-            )
-        )
-    p.status = models.StatusPengajuan.DIVERIFIKASI
-    db.commit()
-    return {"pengajuan_id": p.id, "status": p.status, "hasil_manual": payload.hasil_manual}
+    baris = verifikasi_service.rekam_verifikasi(
+        db, p, payload.hasil_manual, petugas_id=user.id, catatan=payload.catatan
+    )
+    return {
+        "pengajuan_id": p.id,
+        "status": p.status,
+        "hasil_manual": baris.hasil_manual,
+        "hasil_sistem_dinilai": baris.hasil_sistem,
+        "versi_model_dinilai": baris.versi_model,
+    }

@@ -8,6 +8,50 @@ perbaikan bug penting, penggantian pustaka/versi, dan hasil pengujian yang mengu
 
 ---
 
+## 2026-08-08 — Fase 5: Dashboard, Penjelasan & Instrumen Pengujian (SELESAI)
+
+**Dibangun:** `app/services/verifikasi.py` (perekaman verifikasi + snapshot putusan yang dinilai),
+`explanation.py` ditulis ulang di atas `KriteriaFuzzy.label()`, `metrics.py` diperluas
+(ringkasan efisiensi warm/cold/per-tier, ringkasan efektivitas dengan arah kesalahan),
+`dashboard_service.py` (agregasi kolom + `status_model()`), halaman `/metrik`, paginasi &
+pencarian `/daftar`, `/peringkat` menampilkan batch tersimpan, tombol verifikasi di detail,
+pemanasan artefak saat startup, migrasi `9a1c4f7be210`, dan 23 tes baru
+(`test_penjelasan.py`, `test_metrik.py`). Tes: **105 lulus** (sebelumnya 82).
+
+**Keenam keputusan D-01…D-06 dijalankan sesuai rekomendasi.** Hasil terukur (probe yang sama
+dijalankan sebelum & sesudah — `hasil_probe.txt` vs `hasil_probe_setelah.txt`):
+- **Skew penjelasan 70,3% / 58,0% / 13,3% → 0% / 0% / 0%.** Dijaga tes yang menyapu 9.408
+  perbandingan label di seluruh domain, bukan sekadar tercapai sekali.
+- **Tier 3 masuk penjelasan**: 0/300 → 146/300 kalimat menyebut peringkat & nilai preferensi;
+  versi model 0/300 → 300/300; tabel kontribusi kriteria 300/300. Bahannya sudah dihitung sejak
+  Fase 4 dan selama ini dibuang `jalankan_ranking()` sebelum menyimpan.
+- **Instrumen waktu**: cold (11.922 ms) dipisahkan dari warm (p50 204 ms, ≤5 detik 100%);
+  305 baris pra-Fase 5 jadi populasi ketiga karena tidak punya penanda. Per tahap: T1 93 ms ·
+  T2 96 ms per pengajuan · **T3 19 ms per batch** 145 alternatif (satuan sengaja berbeda).
+- **`/daftar` 1.801 ms / 833 KiB → 49 ms / 16,8 KiB**; `/peringkat` berhenti menulis 145 baris
+  baru tiap kali dilihat. `ringkasan()` 9,3 → 9,5 ms **sambil menghitung jauh lebih banyak** —
+  dilaporkan sebagai imbang, bukan perbaikan.
+- **Efektivitas: instrumennya selesai, angkanya 0 pasangan → menolak tampil** (bukan 0%).
+
+**Penyesuaian exit criteria yang ditulis di muka dan ditepati:** angka efektivitas ≥85% dipindah
+ke Fase 7. Uji ujung-ke-ujung sempat memakai 3 verifikasi buatan untuk membuktikan jalurnya
+bekerja; ketiganya **dihapus setelah verifikasi** agar tidak ada angka karangan mengendap di basis
+data.
+
+**Cacat yang tersingkap saat implementasi (ketiganya diperbaiki):**
+- **`GET /metrik` API menutupi halaman web `/metrik`** — tabrakan rute yang sama persis dengan bug
+  Fase 0 (`POST /analisis/ranking` vs `/{pengajuan_id}`). API dipindah ke `/metrik/ringkasan`.
+- **Penanda cold/warm nyaris jadi kebohongan statistik:** versi pertama memperlakukan 305 baris
+  lama sebagai `warm`, memasukkan cold start 13.998 ms ke angka NFR-01 lewat pintu belakang.
+- **Pemeriksa cold/warm sempat merusak yang diukurnya:** `info_model()` Tier 2 memaksa pemuatan,
+  sehingga biaya muat pindah ke luar rentang yang diukur. Ditambahkan `sudah_dimuat()` yang tidak
+  memicu pemuatan.
+
+**Perubahan skema (migrasi `9a1c4f7be210`):** `log_pengujian` + `durasi_tier1_ms`,
+`durasi_tier2_ms`, `jenis_muat`, − `hasil_manual_petugas` (0 baris, pindah); `ranking_topsis` +
+`jarak_positif`, `jarak_negatif`, `seri_dengan`, `keanggotaan`; tabel baru `log_ranking` dan
+`verifikasi_manual`. 305 baris log lama utuh.
+
 ## 2026-08-08 — Gerbang Fase 5: evaluasi lintas-fase + probe pra-Fase 5
 
 **Dibuat:** [evaluasi-pra-fase-5.md](evaluasi-pra-fase-5.md) (tinjauan Fase 0–4),

@@ -24,6 +24,7 @@
           <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="/daftar"><i class="bi bi-list-check"></i> Pengajuan</a></li>
           <li class="nav-item"><a class="nav-link" href="/peringkat"><i class="bi bi-trophy"></i> Peringkat</a></li>
+          <li class="nav-item"><a class="nav-link" href="/metrik"><i class="bi bi-speedometer"></i> Metrik</a></li>
           <li class="nav-item"><a class="nav-link" href="/form"><i class="bi bi-plus-square"></i> Baru</a></li>
         </ul>
         <span class="navbar-text me-3 small"><i class="bi bi-person-circle"></i> {{ user.nama }}</span>
@@ -33,10 +34,39 @@
   </nav>
   {% endif %}
   <main class="container py-4">
+    {# Peringatan fallback (D-05): bila sebuah tier melayani dari jalur cadangan, hasil di layar
+       BUKAN keluaran metode yang seharusnya. Tiga kegagalan senyap proyek ini semuanya hanya
+       tersingkap oleh penanda versi — dan penandanya tidak pernah sampai ke layar. #}
+    {% if user and status_model %}
+      {% set fallback = status_model | selectattr("fallback") | list %}
+      {% if fallback %}
+      <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+        <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+        <div>
+          <strong>Sebagian tier memakai jalur cadangan.</strong>
+          Hasil yang ditampilkan bukan keluaran metode sebenarnya dan tidak sah dipakai untuk
+          evaluasi.
+          <ul class="mb-0 mt-1 small">
+            {% for s in fallback %}
+            <li>{{ s.nama }} — <code>{{ s.versi }}</code>{% if s.keterangan %}: {{ s.keterangan }}{% endif %}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
   <footer class="container text-center text-muted small py-4">
-    Prototipe DSS Bansos — Fase 0 (kerangka). Model tier masih <em>stub</em>.
+    DSS Bansos Bontoramba — pipeline 3-tier: IndoBERT · klasifikasi ML · Fuzzy TOPSIS (Chen 2000).
+    {% if status_model %}
+    <div class="mt-1">
+      {% for s in status_model %}
+      <span class="badge text-bg-{{ 'danger' if s.fallback else 'light' }} border me-1"
+            title="{{ s.keterangan or '' }}">{{ s.nama }}: {{ s.versi }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
   </footer>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>

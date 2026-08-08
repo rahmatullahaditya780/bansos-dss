@@ -22,6 +22,7 @@ __all__ = [
     "predict_eligibility",
     "predict_eligibility_batch",
     "info_model",
+    "sudah_dimuat",
     "VERSI_MODEL_FALLBACK",
 ]
 
@@ -52,6 +53,11 @@ def predict_eligibility_batch(daftar_features: list[dict[str, float]]) -> list[T
 def info_model() -> dict[str, object]:
     """Status model Tier 2 (path artefak, algoritma, asal data, apakah fallback aktif)."""
     return get_classifier().info()
+
+
+def sudah_dimuat() -> bool:
+    """True bila artefak sudah di memori, tanpa memicu pemuatan (penanda cold/warm, Fase 5)."""
+    return get_classifier().sudah_dimuat()
 
 
 # Versi cadangan dipertahankan sebagai rujukan di tes & dokumentasi.

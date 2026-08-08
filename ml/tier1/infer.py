@@ -92,6 +92,15 @@ class UrgencyScorer:
         """True bila artefak ada di disk (belum tentu sudah dimuat)."""
         return (self.model_path / "config.json").exists()
 
+    def sudah_dimuat(self) -> bool:
+        """True bila artefak sudah berada di memori — **tanpa memicu pemuatan**.
+
+        Dipakai menandai baris log `cold`/`warm` (Fase 5, D-02). Sengaja tidak memakai `info()`:
+        `info()` Tier 2 memaksa pemuatan lebih dulu, sehingga memanggilnya untuk *mengukur* biaya
+        pemuatan justru memindahkan biaya itu ke luar rentang yang diukur.
+        """
+        return self._model is not None
+
     @property
     def versi_model(self) -> str:
         if self._versi_model is None:

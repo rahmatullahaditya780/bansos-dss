@@ -10,8 +10,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import ValidationError
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import COOKIE_NAME, authenticate_user, get_optional_user
 from app.core.config import settings
@@ -20,6 +20,7 @@ from app.db import models
 from app.db.session import get_db
 from app.schemas.pengajuan import DataSurveiIn, PengajuanCreate, TeksNaratifIn, WargaIn
 from app.services import dashboard_service, pipeline
+from app.services import verifikasi as verifikasi_service
 from app.services.pengajuan_service import create_pengajuan
 from app.templating import templates
 
@@ -32,6 +33,16 @@ def _redirect(path: str) -> RedirectResponse:
 
 def _require(user: Optional[models.User]) -> bool:
     return user is not None and user.role == models.Role.PETUGAS
+
+
+def _ctx(user: Optional[models.User], **extra) -> dict:
+    """Konteks template + status pemasangan model (D-05).
+
+    `status_model` disuntikkan ke SETIAP halaman, bukan hanya halaman metrik: penanda versi yang
+    hanya muncul di satu tempat tersembunyi persis sama tidak bergunanya dengan yang hanya ada di
+    baris perintah. Biayanya 0,47 ms per halaman.
+    """
+    return {"user": user, "status_model": dashboard_service.status_model(), **extra}
 
 
 # ---- Auth ----
@@ -96,7 +107,7 @@ def dashboard(
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"user": user, "r": dashboard_service.ringkasan(db), "recent": recent},
+        _ctx(user, r=dashboard_service.ringkasan(db), recent=recent),
     )
 
 
@@ -114,18 +125,64 @@ def dashboard_partial(
 
 
 # ---- Daftar pengajuan ----
+UKURAN_HALAMAN = 25
+
+
 @router.get("/daftar", response_class=HTMLResponse)
 def daftar(
     request: Request,
     db: Session = Depends(get_db),
     user: Optional[models.User] = Depends(get_optional_user),
+    q: str = "",
+    status_filter: str = "",
+    halaman: int = 1,
 ):
+    """Daftar pengajuan berpaginasi + penyaring status + pencarian NIK/nama (Fase 5, D-06).
+
+    Sampai Fase 4 rute ini merender SELURUH tabel: 2.020 baris = 833 KiB dan 1,8 detik, yang
+    1,775 detik di antaranya render karena `p.warga` diakses per baris (N+1). `joinedload`
+    menutup N+1; paginasi menjaga halaman tetap ringan saat data lokal masuk (Fase 6).
+    """
     if not _require(user):
         return _redirect("/login")
+
+    stmt = select(models.Pengajuan).join(models.Warga).options(
+        joinedload(models.Pengajuan.warga)
+    )
+    if status_filter in (models.StatusPengajuan.BARU, models.StatusPengajuan.DIANALISIS,
+                         models.StatusPengajuan.DIVERIFIKASI):
+        stmt = stmt.where(models.Pengajuan.status == status_filter)
+    kata = q.strip()
+    if kata:
+        pola = f"%{kata}%"
+        stmt = stmt.where(models.Warga.nama.ilike(pola) | models.Warga.nik.ilike(pola))
+
+    total = db.execute(
+        select(func.count()).select_from(stmt.order_by(None).subquery())
+    ).scalar_one()
+    halaman = max(1, halaman)
+    jumlah_halaman = max(1, -(-total // UKURAN_HALAMAN))
+    halaman = min(halaman, jumlah_halaman)
+
     rows = db.execute(
-        select(models.Pengajuan).order_by(models.Pengajuan.tanggal.desc())
+        stmt.order_by(models.Pengajuan.tanggal.desc())
+        .offset((halaman - 1) * UKURAN_HALAMAN)
+        .limit(UKURAN_HALAMAN)
     ).scalars().all()
-    return templates.TemplateResponse(request, "daftar.html", {"user": user, "rows": rows})
+
+    return templates.TemplateResponse(
+        request,
+        "daftar.html",
+        _ctx(
+            user,
+            rows=rows,
+            q=kata,
+            status_filter=status_filter,
+            halaman=halaman,
+            jumlah_halaman=jumlah_halaman,
+            total=total,
+        ),
+    )
 
 
 # ---- Detail + analisis (HTMX) ----
@@ -142,7 +199,50 @@ def detail(
     if p is None:
         return HTMLResponse("Pengajuan tidak ditemukan", status_code=status.HTTP_404_NOT_FOUND)
     return templates.TemplateResponse(
-        request, "detail.html", {"user": user, "p": p, "hasil": pipeline.susun_hasil(p)}
+        request,
+        "detail.html",
+        _ctx(
+            user,
+            p=p,
+            hasil=pipeline.susun_hasil(p),
+            verifikasi=verifikasi_service.verifikasi_terakhir(db, p.id),
+        ),
+    )
+
+
+@router.post("/detail/{pengajuan_id}/verifikasi", response_class=HTMLResponse)
+def detail_verifikasi(
+    pengajuan_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: Optional[models.User] = Depends(get_optional_user),
+    hasil_manual: str = Form(...),
+    catatan: str = Form(default=""),
+):
+    """Rekam verifikasi manual dari antarmuka (FR-26).
+
+    Sampai Fase 4 perekaman ini hanya ada sebagai endpoint API tanpa tombol di layar mana pun —
+    itulah sebabnya 305 baris log tidak punya satu pun penilaian manual dan metrik efektivitas
+    tidak pernah bisa dihitung (evaluasi pra-Fase 5 §5.4).
+    """
+    if not _require(user):
+        return HTMLResponse("", status_code=status.HTTP_401_UNAUTHORIZED)
+    p = db.get(models.Pengajuan, pengajuan_id)
+    if p is None:
+        return HTMLResponse(
+            "<div class='alert alert-danger mb-0'>Pengajuan tidak ditemukan.</div>",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    if hasil_manual not in (models.HasilKelayakan.LAYAK, models.HasilKelayakan.TIDAK_LAYAK):
+        return HTMLResponse(
+            "<div class='alert alert-danger mb-0'>Pilihan verifikasi tidak sah.</div>",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    baris = verifikasi_service.rekam_verifikasi(
+        db, p, hasil_manual, petugas_id=user.id, catatan=catatan.strip() or None
+    )
+    return templates.TemplateResponse(
+        request, "partials/_verifikasi.html", {"p": p, "verifikasi": baris}
     )
 
 
@@ -175,9 +275,66 @@ def peringkat(
     db: Session = Depends(get_db),
     user: Optional[models.User] = Depends(get_optional_user),
 ):
+    """Tampilkan batch terakhir yang TERSIMPAN — tanpa menghitung ulang.
+
+    Sampai Fase 4 halaman ini selalu kosong dan satu-satunya cara melihat peringkat adalah
+    menekan tombol yang menjalankan batch baru: 145 baris `ranking_topsis` tertulis setiap kali
+    seseorang ingin melihat hasil kemarin (evaluasi pra-Fase 5 §5.5).
+    """
     if not _require(user):
         return _redirect("/login")
-    return templates.TemplateResponse(request, "peringkat.html", {"user": user})
+    return templates.TemplateResponse(
+        request,
+        "peringkat.html",
+        _ctx(user, hasil=_batch_terakhir(db)),
+    )
+
+
+def _batch_terakhir(db: Session) -> Optional[dict]:
+    """Rakit batch perangkingan terakhir dari basis data (bukan menjalankan ulang Tier 3)."""
+    batch_id = db.execute(
+        select(models.RankingTopsis.batch_id)
+        .order_by(models.RankingTopsis.created_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if batch_id is None:
+        return None
+
+    rows = db.execute(
+        select(models.RankingTopsis)
+        .where(models.RankingTopsis.batch_id == batch_id)
+        .order_by(models.RankingTopsis.peringkat)
+        .options(
+            joinedload(models.RankingTopsis.pengajuan).joinedload(models.Pengajuan.warga)
+        )
+    ).scalars().all()
+    log = db.execute(
+        select(models.LogRanking).where(models.LogRanking.batch_id == batch_id)
+    ).scalars().first()
+    snapshot = (rows[0].bobot_snapshot or {}) if rows else {}
+
+    return {
+        "batch_id": batch_id,
+        "jumlah_alternatif": len(rows),
+        "versi_metode": snapshot.get("versi_metode"),
+        "versi_konfigurasi": snapshot.get("versi_konfigurasi"),
+        "durasi_ms": log.durasi_ms if log else None,
+        "tersimpan": True,
+        "dibuat": rows[0].created_at if rows else None,
+        "ranking": [
+            {
+                "peringkat": r.peringkat,
+                "pengajuan_id": r.pengajuan_id,
+                "warga_nama": r.pengajuan.warga.nama,
+                "nilai_preferensi": r.nilai_preferensi,
+                "prediksi": models.HasilKelayakan.LAYAK,
+                "skor_urgensi": round(pipeline._urgensi_pengajuan(r.pengajuan), 4),
+                "seri_dengan": r.seri_dengan,
+                "keanggotaan": r.keanggotaan,
+            }
+            for r in rows
+        ],
+    }
 
 
 @router.post("/peringkat/run", response_class=HTMLResponse)
@@ -192,12 +349,28 @@ def peringkat_run(
     return templates.TemplateResponse(request, "partials/_ranking_table.html", {"hasil": hasil})
 
 
+# ---- Metrik pengujian (Bab 9.2/9.3) ----
+@router.get("/metrik", response_class=HTMLResponse)
+def metrik(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: Optional[models.User] = Depends(get_optional_user),
+):
+    if not _require(user):
+        return _redirect("/login")
+    return templates.TemplateResponse(
+        request,
+        "metrik.html",
+        _ctx(user, eff=dashboard_service.efisiensi(db), efek=dashboard_service.efektivitas(db)),
+    )
+
+
 # ---- Form pengajuan baru ----
 @router.get("/form", response_class=HTMLResponse)
 def form_page(request: Request, user: Optional[models.User] = Depends(get_optional_user)):
     if not _require(user):
         return _redirect("/login")
-    return templates.TemplateResponse(request, "form.html", {"user": user, "error": None})
+    return templates.TemplateResponse(request, "form.html", _ctx(user, error=None))
 
 
 @router.post("/form", response_class=HTMLResponse)
@@ -254,7 +427,7 @@ def form_submit(
         return templates.TemplateResponse(
             request,
             "form.html",
-            {"user": user, "error": str(exc)},
+            _ctx(user, error=str(exc)),
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
     pengajuan = create_pengajuan(db, user.id, payload)

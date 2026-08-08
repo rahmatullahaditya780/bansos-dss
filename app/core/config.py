@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     ml_model_path: str = "ml/artifacts/tier2"  # direktori artefak Tier 2 (model.joblib + metadata)
     fuzzy_config_path: str = "config/fuzzy_config.yaml"
 
+    # Muat artefak model saat aplikasi start, bukan saat permintaan pertama (Fase 5, D-02).
+    # Startup jadi ~14 detik lebih lama, tetapi tidak ada petugas yang menanggungnya — dan
+    # metrik NFR-01 berhenti mencatat biaya pemuatan sebagai kegagalan.
+    # Dimatikan di lingkungan tes agar suite tidak memuat IndoBERT sebelum tes pertama.
+    panaskan_model_saat_start: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

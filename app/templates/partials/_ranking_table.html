@@ -1,20 +1,55 @@
-{% if hasil.ranking %}
-<div class="mb-2 small text-muted">
-  Batch <code>{{ hasil.batch_id }}</code> · {{ hasil.jumlah_alternatif }} alternatif (pengajuan layak)
+{% if hasil and hasil.ranking %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2 small text-muted">
+  <div>
+    Batch <code>{{ hasil.batch_id }}</code> · {{ hasil.jumlah_alternatif }} alternatif (pengajuan layak)
+    {% if hasil.tersimpan %}<span class="badge text-bg-light border">tersimpan — tidak dihitung ulang</span>{% endif %}
+  </div>
+  <div class="text-end">
+    {% if hasil.versi_metode %}
+      <span class="badge text-bg-{{ 'danger' if 'fallback' in hasil.versi_metode else 'light' }} border">
+        {{ hasil.versi_metode }}</span>
+    {% endif %}
+    {% if hasil.versi_konfigurasi %}<span class="badge text-bg-light border">cfg {{ hasil.versi_konfigurasi }}</span>{% endif %}
+    {% if hasil.durasi_ms is not none %}<span class="badge text-bg-light border">{{ hasil.durasi_ms | milidetik }} / batch</span>{% endif %}
+  </div>
 </div>
+
+{% if hasil.versi_metode and 'fallback' in hasil.versi_metode %}
+<div class="alert alert-danger py-2 small">
+  <i class="bi bi-exclamation-octagon"></i> Batch ini dirangking <strong>tanpa logika fuzzy</strong>
+  (konfigurasi keanggotaan tidak sah saat itu). Hasilnya tidak sah dipakai untuk evaluasi.
+</div>
+{% endif %}
+
 <div class="table-responsive">
   <table class="table table-striped mb-0">
     <thead>
-      <tr><th>#</th><th>Pengajuan</th><th>Warga</th><th>Nilai Preferensi</th><th>Skor Urgensi</th></tr>
+      <tr>
+        <th>#</th><th>Pengajuan</th><th>Warga</th><th>Nilai Preferensi</th>
+        <th>Skor Urgensi</th><th>Kategori kriteria</th>
+      </tr>
     </thead>
     <tbody>
       {% for it in hasil.ranking %}
       <tr>
-        <td><span class="badge text-bg-success">{{ it.peringkat }}</span></td>
+        <td>
+          <span class="badge text-bg-success">{{ it.peringkat }}</span>
+          {% if it.seri_dengan %}
+          <span class="badge text-bg-warning" title="Nilai preferensi identik dengan {{ it.seri_dengan }} pengajuan lain; urutan diputus aturan tiebreak tercatat">
+            seri {{ it.seri_dengan }}</span>
+          {% endif %}
+        </td>
         <td><a href="/detail/{{ it.pengajuan_id }}" class="text-decoration-none">#{{ it.pengajuan_id }}</a></td>
         <td>{{ it.warga_nama }}</td>
         <td>{{ it.nilai_preferensi | skor }}</td>
         <td>{{ it.skor_urgensi | skor }}</td>
+        <td class="small text-muted">
+          {% if it.keanggotaan %}
+            {% for k, v in it.keanggotaan.items() %}
+            <span class="badge text-bg-light border">{{ k | label_rapi }}: {{ v | label_rapi }}</span>
+            {% endfor %}
+          {% else %}—{% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

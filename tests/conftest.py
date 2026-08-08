@@ -6,6 +6,9 @@ import os
 # Set env SEBELUM mengimpor modul app (agar engine memakai DB uji terpisah).
 os.environ["DATABASE_URL"] = "sqlite:///./test_bansos.db"
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-bytes-long"
+# Pemanasan artefak (Fase 5, D-02) dimatikan di tes: tiap TestClient() akan memuat IndoBERT,
+# termasuk pada tes yang tidak menyentuh Tier 1 sama sekali.
+os.environ["PANASKAN_MODEL_SAAT_START"] = "false"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

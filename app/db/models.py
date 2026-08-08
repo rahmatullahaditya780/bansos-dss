@@ -112,6 +112,9 @@ class Pengajuan(Base):
     log_pengujian = relationship(
         "LogPengujian", back_populates="pengajuan", cascade="all, delete-orphan"
     )
+    verifikasi = relationship(
+        "VerifikasiManual", back_populates="pengajuan", cascade="all, delete-orphan"
+    )
 
 
 class DataSurvei(Base):
@@ -192,13 +195,28 @@ class RankingTopsis(Base):
     nilai_preferensi = Column(Float, nullable=False)
     peringkat = Column(Integer, nullable=False)
     bobot_snapshot = Column(JSON, nullable=True)
+    # Fase 5: bahan penjelasan Tier 3 (OI-07). Sebelumnya `RankingEntry` menghitung keempatnya lalu
+    # membuangnya sebelum menyimpan, sehingga petugas tidak pernah tahu MENGAPA sebuah pengajuan
+    # berada di posisinya (evaluasi pra-Fase 5 §5.2).
+    jarak_positif = Column(Float, nullable=True)
+    jarak_negatif = Column(Float, nullable=True)
+    seri_dengan = Column(Integer, nullable=True)
+    keanggotaan = Column(JSON, nullable=True)  # label linguistik per kriteria saat dirangking
+
     created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
 
     pengajuan = relationship("Pengajuan", back_populates="ranking")
 
 
 class LogPengujian(Base):
-    """Bahan pengukuran efisiensi & efektivitas (TRD Bab 9)."""
+    """Bahan pengukuran EFISIENSI per pengajuan (TRD Bab 9.2, FR-25).
+
+    Sejak Fase 5 tabel ini murni catatan waktu. Penilaian manual petugas pindah ke
+    `verifikasi_manual`: menumpangkannya di sini membuat pasangan (sistem, manual) bergantung
+    pada baris log mana yang kebetulan terbaru — analisis ulang membuat pasangan memakai putusan
+    sistem yang lama, dan verifikasi-sebelum-analisis hilang tanpa peringatan
+    (evaluasi pra-Fase 5 §5.4).
+    """
 
     __tablename__ = "log_pengujian"
 
@@ -206,8 +224,58 @@ class LogPengujian(Base):
     pengajuan_id = Column(ForeignKey("pengajuan.id"), nullable=False, index=True)
     waktu_mulai = Column(DateTime(timezone=True), nullable=False)
     waktu_selesai = Column(DateTime(timezone=True), nullable=True)
-    durasi_ms = Column(Integer, nullable=True)
+    durasi_ms = Column(Integer, nullable=True)  # total Tier 1 + Tier 2 (per pengajuan)
+    durasi_tier1_ms = Column(Integer, nullable=True)
+    durasi_tier2_ms = Column(Integer, nullable=True)
+    # 'cold' bila artefak model masih harus dimuat saat permintaan ini datang, 'warm' bila sudah.
+    # Tanpa penanda ini, satu permintaan 14 detik per restart proses tercampur ke metrik NFR-01
+    # sebagai kegagalan padahal ia biaya pemuatan model (evaluasi pra-Fase 5 §5.3).
+    jenis_muat = Column(String(8), nullable=True)
     hasil_sistem = Column(String(16), nullable=True)  # layak / tidak_layak
-    hasil_manual_petugas = Column(String(16), nullable=True)  # layak / tidak_layak
 
     pengajuan = relationship("Pengajuan", back_populates="log_pengujian")
+
+
+class LogRanking(Base):
+    """Durasi Tier 3 — dicatat PER BATCH, bukan per pengajuan (FR-25).
+
+    Tier 3 merangking seluruh alternatif sekaligus; membagi durasinya ke tiap pengajuan akan
+    mengarang angka per-pengajuan yang tidak pernah diukur (evaluasi pra-Fase 5 §5.3, D-03).
+    """
+
+    __tablename__ = "log_ranking"
+
+    id = Column(Integer, primary_key=True)
+    batch_id = Column(String(64), nullable=False, index=True)
+    jumlah_alternatif = Column(Integer, nullable=False)
+    durasi_ms = Column(Integer, nullable=False)
+    versi_metode = Column(String(64), nullable=False)
+    versi_konfigurasi = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class VerifikasiManual(Base):
+    """Penilaian manual petugas atas satu pengajuan (FR-26) — bahan EFEKTIVITAS (Bab 9.3, OI-18).
+
+    Putusan sistem di-SNAPSHOT saat verifikasi direkam, bukan dirujuk belakangan. Petugas menilai
+    apa yang dilihatnya; bila pengajuan dianalisis ulang setelah itu, perbandingan harus tetap
+    mengacu pada putusan yang benar-benar dinilai — bukan pada putusan terbaru yang tidak pernah
+    ia lihat.
+    """
+
+    __tablename__ = "verifikasi_manual"
+
+    id = Column(Integer, primary_key=True)
+    pengajuan_id = Column(ForeignKey("pengajuan.id"), nullable=False, index=True)
+    petugas_id = Column(ForeignKey("users.id"), nullable=True)
+    hasil_manual = Column(String(16), nullable=False)  # layak / tidak_layak
+    # Snapshot putusan sistem PADA SAAT dinilai:
+    hasil_sistem = Column(String(16), nullable=True)
+    probabilitas_sistem = Column(Float, nullable=True)
+    versi_model = Column(String(64), nullable=True)
+    peringkat_sistem = Column(Integer, nullable=True)
+    catatan = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+
+    pengajuan = relationship("Pengajuan", back_populates="verifikasi")
+    petugas = relationship("User")

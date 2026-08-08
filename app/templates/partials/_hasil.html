@@ -4,7 +4,10 @@
     <div class="metric">
       <div class="metric-label">Skor Urgensi · Tier 1</div>
       <div class="metric-value">{{ hasil.skor_urgensi | skor }}</div>
-      <div class="small text-muted">0–1 (probabilitas urgensi tinggi)</div>
+      <div class="small text-muted">
+        {% if hasil.penjelasan %}kategori <strong>{{ hasil.penjelasan.label.skor_urgensi }}</strong>{% endif %}
+        · 0–1 (probabilitas urgensi tinggi)
+      </div>
     </div>
   </div>
   <div class="col-md-4">
@@ -24,17 +27,76 @@
         {% if hasil.topsis %}#{{ hasil.topsis.peringkat }}{% else %}<span class="text-muted">-</span>{% endif %}
       </div>
       <div class="small text-muted">
-        {% if hasil.topsis %}nilai {{ hasil.topsis.nilai_preferensi | skor }} · batch {{ hasil.topsis.batch_id }}
+        {% if hasil.topsis %}
+          nilai {{ hasil.topsis.nilai_preferensi | skor }} · batch {{ hasil.topsis.batch_id }}
+          {% if hasil.topsis.seri_dengan %}<br><span class="text-warning-emphasis">seri dengan {{ hasil.topsis.seri_dengan }} lainnya</span>{% endif %}
         {% else %}jalankan perangkingan di menu Peringkat{% endif %}
       </div>
     </div>
   </div>
 </div>
+
+{# Penjelasan per tier (OI-07). Label berasal dari fungsi keanggotaan yang SAMA dengan yang
+   dipakai merangking — `sumber_label` menandainya, dan berubah menjadi cadangan bila konfigurasi
+   keanggotaan tidak dapat dimuat. #}
+{% if hasil.penjelasan %}
+<div class="card mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <span class="small"><i class="bi bi-info-circle text-success"></i> Alasan keputusan</span>
+    {% if hasil.penjelasan.sumber_label == 'keanggotaan-fuzzy-v1' %}
+      <span class="badge text-bg-light border" title="Label sama dengan yang dipakai merangking">
+        label: fungsi keanggotaan</span>
+    {% else %}
+      <span class="badge text-bg-warning" title="Konfigurasi keanggotaan tidak terbaca">
+        label cadangan — tidak dijamin sepakat dengan peringkat</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <ol class="mb-3 small ps-3">
+      <li class="mb-1"><strong>Tier 1 · urgensi narasi</strong><br>{{ hasil.penjelasan.tier1 }}</li>
+      <li class="mb-1"><strong>Tier 2 · kelayakan</strong><br>{{ hasil.penjelasan.tier2 }}</li>
+      {% if hasil.penjelasan.tier3 %}
+      <li><strong>Tier 3 · prioritas</strong><br>{{ hasil.penjelasan.tier3 }}</li>
+      {% else %}
+      <li class="text-muted">Tier 3 · belum masuk batch perangkingan mana pun</li>
+      {% endif %}
+    </ol>
+
+    <div class="small text-muted mb-1">Kriteria penyumbang peringkat (bobot dari konfigurasi):</div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 small">
+        <thead><tr><th>Kriteria</th><th>Bobot</th><th>Posisi pengajuan ini</th></tr></thead>
+        <tbody>
+          {% for k in hasil.penjelasan.kontribusi %}
+          <tr>
+            <td>{{ k.kriteria | label_rapi }}</td>
+            <td><div class="progress" style="height:.5rem;width:6rem" role="progressbar">
+              <div class="progress-bar bg-success" style="width: {{ (k.bobot * 100) | round(0) }}%"></div>
+            </div><span class="text-muted">{{ (k.bobot * 100) | round(0) | int }}%</span></td>
+            <td>{{ k.label }}{% if k.dari_snapshot %}
+              <span class="text-muted" title="Label yang berlaku saat batch ini dirangking">· tersimpan</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
 <div class="alert alert-light border mt-3 mb-0">
   <i class="bi bi-info-circle text-success"></i> <strong>Alasan:</strong> {{ hasil.alasan }}
 </div>
+{% endif %}
+
 {% if hasil.durasi_ms is not none %}
-<div class="small text-muted mt-2"><i class="bi bi-stopwatch"></i> Durasi analisis: {{ hasil.durasi_ms }} ms</div>
+<div class="small text-muted mt-2">
+  <i class="bi bi-stopwatch"></i> Durasi analisis: {{ hasil.durasi_ms | milidetik }}
+  {%- if hasil.durasi_tier1_ms is not none %} (Tier 1 {{ hasil.durasi_tier1_ms | milidetik }} ·
+  Tier 2 {{ hasil.durasi_tier2_ms | milidetik }}){% endif %}
+  {%- if hasil.jenis_muat == 'cold' %}
+  <span class="badge text-bg-light border" title="Termasuk biaya pemuatan artefak model">cold start</span>
+  {%- endif %}
+</div>
 {% endif %}
 {% else %}
 <p class="text-muted mb-0">Belum dianalisis. Klik <strong>Jalankan Analisis</strong> untuk menghitung skor urgensi & prediksi kelayakan.</p>
