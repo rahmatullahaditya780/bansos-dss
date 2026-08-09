@@ -57,6 +57,7 @@ API di http://localhost:8000. Skema dibuat otomatis (`alembic upgrade head`).
 | `app/api/routes` | Endpoint REST (TRD Bab 8) |
 | `app/services` | Logika tiap tier (ketiganya asli) + generator alasan + metrik |
 | `app/templates` | Dashboard Jinja2 + Bootstrap 5 + HTMX |
+| `app/static/vendor` | Aset pihak ketiga **dilayani lokal** (lihat di bawah) — dashboard tidak butuh internet |
 | `ml/tier1` | Preprocessing, korpus, pelatihan, evaluasi & inference IndoBERT (Tier 1) |
 | `ml/tier2` | Skema fitur, ekspor+split, latih & banding RF/GB, evaluasi, inference (Tier 2) |
 | `ml/tier3` | Fungsi keanggotaan, Fuzzy TOPSIS, TOPSIS crisp cadangan, sensitivitas (Tier 3) |
@@ -64,6 +65,25 @@ API di http://localhost:8000. Skema dibuat otomatis (`alembic upgrade head`).
 | `config/fuzzy_config.yaml` | Bobot kriteria, arah, fungsi keanggotaan (OI-13) & aturan tiebreak |
 | `data/synthetic` | Generator data simulasi + skrip seed |
 | `data/corpus` | Korpus teks berlabel urgensi + split latih/uji (dibangkitkan, tidak di-commit) |
+
+## Aset antarmuka (dilayani lokal, bukan CDN)
+
+Dashboard **tidak memuat apa pun dari internet**. Sampai Fase 5 seluruh aset diambil dari
+jsDelivr/unpkg, sehingga tanpa jaringan — di ruang sidang atau di kantor kelurahan saat UAT —
+halaman tampil tanpa gaya sama sekali. Semuanya kini di `app/static/vendor/`:
+
+| Aset | Versi | Sumber unduhan |
+|---|---|---|
+| Bootstrap (CSS + bundle JS) | 5.3.3 | `cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/` |
+| Bootstrap Icons (CSS + woff2/woff) | 1.11.3 | `cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/` |
+| HTMX | 1.9.12 | `unpkg.com/htmx.org@1.9.12/dist/htmx.min.js` |
+| Inter Variable (subset latin, woff2) | fontsource 5.0.20 | `cdn.jsdelivr.net/npm/@fontsource-variable/inter@5.0.20/files/` |
+
+Total ±790 KB. *Source map* Bootstrap sengaja tidak ikut diunduh (hanya diminta peramban saat
+DevTools terbuka; ketiadaannya tidak berpengaruh pada pengguna).
+
+**Cara memeriksa tidak ada yang bocor ke CDN:** `grep -rn "https://" app/templates app/static/css`
+harus kosong, dan halaman tetap utuh saat jaringan dimatikan.
 
 ## Model Tier 1 (IndoBERT)
 

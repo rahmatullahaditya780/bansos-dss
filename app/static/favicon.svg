@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="DSS Bansos">
+  <rect width="32" height="32" rx="7" fill="#17553f"/>
+  <!-- Tiga batang menaik = tiga tier yang menyusun prioritas. -->
+  <rect x="8"  y="18" width="4.5" height="7"  rx="1.5" fill="#6da7ec"/>
+  <rect x="14" y="13" width="4.5" height="12" rx="1.5" fill="#3987e5"/>
+  <rect x="20" y="8"  width="4.5" height="17" rx="1.5" fill="#dce9fb"/>
+</svg>

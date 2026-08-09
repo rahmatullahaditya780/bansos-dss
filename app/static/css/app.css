@@ -22,8 +22,21 @@
       surface ini — karena itu setiap pil status wajib membawa ikon + kata.
    ========================================================================== */
 
+/* Font UI dilayani dari server ini, bukan Google Fonts — sama alasannya dengan aset vendor:
+   halaman harus utuh tanpa internet. Satu berkas variabel menutup seluruh bobot yang dipakai. */
+@font-face {
+  font-family: "InterVariable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/static/vendor/font/inter-latin-wght-normal.woff2") format("woff2");
+}
+
 :root {
   color-scheme: light;
+
+  --font-ui: "InterVariable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Chrome (bukan data) */
   --brand:        #1f6f54;
@@ -68,10 +81,16 @@
 
 /* ---------------------------------------------------------------- dasar --- */
 body {
+  font-family: var(--font-ui);
   background: var(--plane);
   color: var(--ink-1);
   -webkit-font-smoothing: antialiased;
+  /* Inter punya alternatif yang lebih baik untuk antarmuka: angka bertinggi sama dan
+     'a'/'g' satu-lantai membuat label kecil lebih tenang dibaca. */
+  font-feature-settings: "cv05" 1, "cv08" 1, "ss03" 1;
 }
+
+code, .tag-versi { font-family: var(--font-mono); }
 
 h1, h2, h3, h4, h5 { letter-spacing: -.01em; }
 
