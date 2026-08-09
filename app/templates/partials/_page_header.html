@@ -1,0 +1,26 @@
+{# Kepala halaman tunggal. Enam template dulu mengulang pola d-flex justify-content-between
+   dengan variasi kecil; satukan di sini supaya jarak dan ukuran judul tidak lagi berbeda-beda
+   antar halaman.
+
+   Pakai tanpa tombol:
+     {% import "partials/_page_header.html" as ph %}
+     {{ ph.kepala("Dashboard", "Ringkasan pengajuan") }}
+
+   Pakai dengan tombol di kanan:
+     {% call ph.kepala("Peringkat Prioritas", "Fuzzy TOPSIS Chen (2000)") %}
+       <button class="btn btn-primary">…</button>
+     {% endcall %}
+#}
+{% macro kepala(judul, sub='', kembali_href='', kembali_teks='Kembali') %}
+{% if kembali_href %}
+<a href="{{ kembali_href }}" class="small text-decoration-none">&larr; {{ kembali_teks }}</a>
+{% endif %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3
+            {{ 'mt-1' if kembali_href }}">
+  <div>
+    <h1 class="page-title">{{ judul }}</h1>
+    {% if sub %}<p class="page-sub">{{ sub }}</p>{% endif %}
+  </div>
+  {% if caller %}<div class="d-flex gap-2 flex-wrap">{{ caller() }}</div>{% endif %}
+</div>
+{% endmacro %}

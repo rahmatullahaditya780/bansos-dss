@@ -1,17 +1,10 @@
 {% extends "base.html" %}
+{% import "partials/_page_header.html" as ph %}
 {% block title %}Dashboard — DSS Bansos{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-  <div>
-    <h1 class="page-title">Dashboard</h1>
-    <p class="page-sub">Ringkasan pengajuan &amp; kinerja pipeline tiga tier</p>
-  </div>
-  <a href="/form" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Pengajuan Baru</a>
-</div>
+{{ ph.kepala("Dashboard", "Ringkasan pengajuan & kinerja pipeline tiga tier") }}
 
-<div hx-get="/dashboard/ringkasan-partial" hx-trigger="every 5s" hx-swap="innerHTML">
-  {% include "partials/_ringkasan.html" %}
-</div>
+{% include "partials/_ringkasan.html" %}
 
 <div class="card mt-3">
   <div class="card-header d-flex justify-content-between align-items-center">

@@ -1,13 +1,8 @@
 {% extends "base.html" %}
+{% import "partials/_page_header.html" as ph %}
 {% block title %}Daftar Pengajuan — DSS Bansos{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-  <div>
-    <h1 class="page-title">Daftar Pengajuan</h1>
-    <p class="page-sub">Cari, saring, dan buka detail hasil analisis</p>
-  </div>
-  <a href="/form" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Pengajuan Baru</a>
-</div>
+{{ ph.kepala("Daftar Pengajuan", "Cari, saring, dan buka detail hasil analisis") }}
 
 <form method="get" action="/daftar" class="row g-2 mb-3">
   <div class="col-sm-6 col-md-5">

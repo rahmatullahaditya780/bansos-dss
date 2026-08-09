@@ -102,12 +102,18 @@ def dashboard(
     if not _require(user):
         return _redirect("/login")
     recent = db.execute(
-        select(models.Pengajuan).order_by(models.Pengajuan.tanggal.desc()).limit(8)
+        select(models.Pengajuan)
+        .options(joinedload(models.Pengajuan.warga))
+        .order_by(models.Pengajuan.tanggal.desc())
+        .limit(8)
     ).scalars().all()
+    r = dashboard_service.ringkasan(db)
+    # `tanda` ikut dirender sejak muat pertama supaya tarikan pertama (5 detik kemudian) sudah
+    # dapat dijawab 204 bila tak ada yang berubah — tanpa ini selalu ada satu penukaran percuma.
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        _ctx(user, r=dashboard_service.ringkasan(db), recent=recent),
+        _ctx(user, r=r, tanda=dashboard_service.tanda_ringkasan(r), recent=recent),
     )
 
 
@@ -116,11 +122,23 @@ def dashboard_partial(
     request: Request,
     db: Session = Depends(get_db),
     user: Optional[models.User] = Depends(get_optional_user),
+    sig: str = "",
 ):
+    """Blok ringkasan yang ditarik ulang dashboard tiap 5 detik.
+
+    Bila angkanya tidak berubah, jawab **204 No Content** — HTMX tidak menukar apa pun. Tanpa ini
+    seluruh blok diganti tiap 5 detik meski isinya sama persis: satu kedip berkala, dan grafik
+    komposisi di dalamnya akan tumbuh ulang selamanya. `sig` dibawa oleh elemen yang sedang
+    menarik (lihat `partials/_ringkasan.html`), sehingga tidak perlu keadaan di sisi server.
+    """
     if not _require(user):
         return HTMLResponse("", status_code=status.HTTP_401_UNAUTHORIZED)
+    r = dashboard_service.ringkasan(db)
+    tanda = dashboard_service.tanda_ringkasan(r)
+    if sig and sig == tanda:
+        return HTMLResponse(status_code=status.HTTP_204_NO_CONTENT)
     return templates.TemplateResponse(
-        request, "partials/_ringkasan.html", {"r": dashboard_service.ringkasan(db)}
+        request, "partials/_ringkasan.html", {"r": r, "tanda": tanda}
     )
 
 

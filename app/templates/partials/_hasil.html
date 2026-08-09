@@ -1,6 +1,6 @@
 {% if hasil.prediksi_ml %}
 <div class="row g-3">
-  <div class="col-md-4">
+  <div class="col-12 col-md-4">
     <div class="metric">
       <div class="metric-label">Tier 1 · skor urgensi</div>
       <div class="metric-value">{{ hasil.skor_urgensi | skor }}</div>
@@ -9,7 +9,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-12 col-md-4">
     <div class="metric">
       <div class="metric-label">Tier 2 · kelayakan</div>
       <div class="metric-value">
@@ -22,7 +22,7 @@
       <div class="stat-context">probabilitas {{ hasil.prediksi_ml.probabilitas | skor }}</div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-12 col-md-4">
     <div class="metric">
       <div class="metric-label">Tier 3 · prioritas</div>
       <div class="metric-value">

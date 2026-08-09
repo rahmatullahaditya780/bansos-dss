@@ -1,18 +1,16 @@
 {% extends "base.html" %}
+{% import "partials/_page_header.html" as ph %}
 {% block title %}Peringkat Prioritas — DSS Bansos{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
-  <div>
-    <h1 class="page-title">Peringkat Prioritas</h1>
-    <p class="page-sub">Fuzzy TOPSIS Chen (2000) — hanya pengajuan yang lolos Tier 2 (OI-15)</p>
-  </div>
+{% call ph.kepala("Peringkat Prioritas",
+                  "Fuzzy TOPSIS Chen (2000) — hanya pengajuan yang lolos Tier 2 (OI-15)") %}
   <button class="btn btn-primary"
           hx-post="/peringkat/run" hx-target="#rank-box" hx-swap="innerHTML" hx-indicator="#spin2"
           hx-confirm="Jalankan perangkingan baru? Ini membuat batch baru; batch lama tetap tersimpan.">
     <span id="spin2" class="htmx-indicator spinner-border spinner-border-sm"></span>
     <i class="bi bi-arrow-repeat"></i> Jalankan Perangkingan Baru
   </button>
-</div>
+{% endcall %}
 <div class="alert alert-catatan">
   <i class="bi bi-info-circle"></i>
   Bobot &amp; fungsi keanggotaan dibaca dari <code>config/fuzzy_config.yaml</code> dan masih

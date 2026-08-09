@@ -1,0 +1,41 @@
+{# Isi sidebar — dipakai dua kali: menempel di kiri pada layar lebar, dan di dalam laci
+   offcanvas pada layar sempit. Penanda menu aktif ditentukan DI SERVER dari `request.url.path`,
+   menggantikan skrip pencocokan `window.location.pathname` yang dulu ada di base.html. #}
+{% set jalur = request.url.path if request else '' %}
+{% set menu = [
+     ('/dashboard', 'bi-speedometer2', 'Dashboard', ['/dashboard']),
+     ('/daftar',    'bi-list-check',   'Pengajuan', ['/daftar', '/detail']),
+     ('/peringkat', 'bi-trophy',       'Peringkat', ['/peringkat']),
+     ('/metrik',    'bi-graph-up',     'Metrik',    ['/metrik']),
+   ] %}
+
+<a class="sidebar-brand" href="/dashboard">
+  <i class="bi bi-clipboard2-data fs-5"></i>
+  <span>DSS Bansos <small>Kelurahan Bontoramba</small></span>
+</a>
+
+<a class="btn btn-primary btn-sm w-100 mb-2" href="/form">
+  <i class="bi bi-plus-lg"></i> Pengajuan Baru
+</a>
+
+<nav class="sidebar-nav" aria-label="Menu utama">
+  {% for href, ikon, label, awalan in menu %}
+    {# `select('in', jalur)` = awalan mana yang muncul di jalur sekarang. Dipakai alih-alih
+       startswith karena Jinja tidak menerima daftar di sana; untuk kelima jalur ini hasilnya
+       setara, dan '/detail/7' ikut menyalakan menu Pengajuan. #}
+    {% set aktif = (awalan | select('in', jalur) | list | length) > 0 %}
+    <a class="sidebar-link {{ 'aktif' if aktif }}" href="{{ href }}"
+       {{ 'aria-current="page"' if aktif }}>
+      <i class="bi {{ ikon }}"></i> {{ label }}
+    </a>
+  {% endfor %}
+</nav>
+
+<div class="sidebar-kaki">
+  <div class="sidebar-sekat"></div>
+  <div class="d-flex align-items-center gap-2 px-2 pb-2">
+    <i class="bi bi-person-circle"></i>
+    <span class="text-truncate">{{ user.nama }}</span>
+  </div>
+  <a class="sidebar-link" href="/logout"><i class="bi bi-box-arrow-right"></i> Keluar</a>
+</div>

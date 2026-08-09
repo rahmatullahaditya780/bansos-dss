@@ -1,13 +1,14 @@
 {% extends "base.html" %}
+{% import "partials/_page_header.html" as ph %}
 {% block title %}Pengajuan Baru — DSS Bansos{% endblock %}
 {% block content %}
-<a href="/daftar" class="small text-decoration-none">&larr; Kembali</a>
-<h1 class="h3 mb-3 mt-1">Pengajuan Baru</h1>
+{{ ph.kepala("Pengajuan Baru", "Data warga, kondisi ekonomi & rumah, dan narasi pengajuan",
+             "/daftar", "Kembali") }}
 {% if error %}<div class="alert alert-danger small">{{ error }}</div>{% endif %}
 
 <form method="post" action="/form">
   <div class="row g-3">
-    <div class="col-lg-6">
+    <div class="col-12 col-lg-6">
       <div class="card">
         <div class="card-header">Data Warga (Demografi)</div>
         <div class="card-body">
@@ -35,7 +36,7 @@
       </div>
     </div>
 
-    <div class="col-lg-6">
+    <div class="col-12 col-lg-6">
       <div class="card">
         <div class="card-header">Data Ekonomi & Kondisi Rumah</div>
         <div class="card-body">

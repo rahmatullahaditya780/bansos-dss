@@ -1,14 +1,13 @@
 {% extends "base.html" %}
+{% import "partials/_page_header.html" as ph %}
 {% block title %}Pengajuan #{{ p.id }} — DSS Bansos{% endblock %}
 {% block content %}
-<a href="/daftar" class="small text-decoration-none">&larr; Kembali ke daftar</a>
-<div class="d-flex justify-content-between align-items-center mb-3 mt-1 flex-wrap gap-2">
-  <h1 class="page-title">Pengajuan #{{ p.id }}</h1>
+{% call ph.kepala("Pengajuan #" ~ p.id, p.warga.nama, "/daftar", "Kembali ke daftar") %}
   {% include "partials/_status_badge.html" %}
-</div>
+{% endcall %}
 
 <div class="row g-3">
-  <div class="col-lg-6">
+  <div class="col-12 col-lg-6">
     <div class="card">
       <div class="card-header">Data Warga</div>
       <div class="card-body">
@@ -53,7 +52,7 @@
     </div>
   </div>
 
-  <div class="col-lg-6">
+  <div class="col-12 col-lg-6">
     <div class="card">
       <div class="card-header">Teks Naratif</div>
       <div class="card-body">

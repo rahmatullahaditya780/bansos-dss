@@ -1,12 +1,9 @@
 {% extends "base.html" %}
+{% import "partials/_page_header.html" as ph %}
 {% block title %}Metrik Pengujian — DSS Bansos{% endblock %}
 {% block content %}
-<h1 class="page-title">Metrik Pengujian</h1>
-<p class="page-sub">
-  Efisiensi (TRD Bab 9.2) dan efektivitas (Bab 9.3) dihitung otomatis dari
-  <code>log_pengujian</code> dan <code>verifikasi_manual</code>. Setiap angka disertai jumlah
-  pengamatan yang menyusunnya.
-</p>
+{{ ph.kepala("Metrik Pengujian",
+   "Efisiensi (Bab 9.2) & efektivitas (Bab 9.3), dihitung otomatis dari log_pengujian dan verifikasi_manual") }}
 
 <!-- ---------------------------------------------------------------- EFISIENSI -->
 <div class="card mb-4">

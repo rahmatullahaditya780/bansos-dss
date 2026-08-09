@@ -12,84 +12,79 @@
   <link href="/static/css/app.css" rel="stylesheet">
 </head>
 <body>
-  {% if user %}
-  <nav class="navbar navbar-expand-lg app-navbar sticky-top" data-bs-theme="dark">
-    <div class="container">
-      <a class="navbar-brand d-flex align-items-center gap-2" href="/dashboard">
-        <i class="bi bi-clipboard2-data"></i>
-        <span>DSS Bansos <span class="fw-normal opacity-75">· Bontoramba</span></span>
-      </a>
-      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
-        <span class="navbar-toggler-icon"></span>
+{% if user %}
+  <a class="lewati" href="#konten">Lewati ke konten</a>
+
+  <div class="app-shell">
+    {# Layar lebar: sidebar menempel. Layar sempit: bar atas + laci offcanvas. #}
+    <aside class="sidebar d-none d-lg-flex">
+      {% include "partials/_sidebar.html" %}
+    </aside>
+
+    <div class="topbar d-lg-none">
+      <button class="btn btn-sm btn-outline-light border-0" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#laci" aria-label="Buka menu">
+        <i class="bi bi-list fs-5"></i>
       </button>
-      <div class="collapse navbar-collapse" id="nav">
-        <ul class="navbar-nav me-auto ms-lg-3 gap-lg-1">
-          <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="/daftar"><i class="bi bi-list-check"></i> Pengajuan</a></li>
-          <li class="nav-item"><a class="nav-link" href="/peringkat"><i class="bi bi-trophy"></i> Peringkat</a></li>
-          <li class="nav-item"><a class="nav-link" href="/metrik"><i class="bi bi-graph-up"></i> Metrik</a></li>
-        </ul>
-        <a class="btn btn-sm btn-primary me-2" href="/form"><i class="bi bi-plus-lg"></i> Baru</a>
-        <span class="navbar-text small me-3 d-none d-lg-inline">
-          <i class="bi bi-person-circle"></i> {{ user.nama }}
-        </span>
-        <a class="btn btn-sm btn-outline-light" href="/logout" title="Keluar">
-          <i class="bi bi-box-arrow-right"></i><span class="d-lg-none"> Keluar</span>
-        </a>
-      </div>
+      <a class="sidebar-brand p-0 flex-grow-1" href="/dashboard">
+        <i class="bi bi-clipboard2-data"></i> <span>DSS Bansos</span>
+      </a>
     </div>
-  </nav>
-  {% endif %}
+    <div class="offcanvas offcanvas-start sidebar d-lg-none" tabindex="-1" id="laci"
+         aria-label="Menu utama">
+      {% include "partials/_sidebar.html" %}
+    </div>
 
-  <main class="container py-4">
-    {# Peringatan fallback (D-05): bila sebuah tier melayani dari jalur cadangan, hasil di layar
-       BUKAN keluaran metode yang seharusnya. Tiga kegagalan senyap proyek ini semuanya hanya
-       tersingkap oleh penanda versi — dan penandanya tidak pernah sampai ke layar. #}
-    {% if user and status_model %}
-      {% set fallback = status_model | selectattr("fallback") | list %}
-      {% if fallback %}
-      <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
-        <i class="bi bi-exclamation-octagon-fill fs-5"></i>
-        <div>
-          <strong>Sebagian tier memakai jalur cadangan.</strong>
-          Hasil yang ditampilkan bukan keluaran metode sebenarnya dan tidak sah dipakai untuk
-          evaluasi.
-          <ul class="mb-0 mt-1 small">
-            {% for s in fallback %}
-            <li>{{ s.nama }} — <code>{{ s.versi }}</code>{% if s.keterangan %}: {{ s.keterangan }}{% endif %}</li>
+    <div class="app-main">
+      <main class="container-fluid px-3 px-lg-4 py-4" id="konten" style="max-width: 1400px">
+        {# Peringatan fallback (D-05): bila sebuah tier melayani dari jalur cadangan, hasil di layar
+           BUKAN keluaran metode yang seharusnya. Tiga kegagalan senyap proyek ini semuanya hanya
+           tersingkap oleh penanda versi — dan penandanya tidak pernah sampai ke layar. #}
+        {% if status_model %}
+          {% set fallback = status_model | selectattr("fallback") | list %}
+          {% if fallback %}
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+            <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+            <div>
+              <strong>Sebagian tier memakai jalur cadangan.</strong>
+              Hasil yang ditampilkan bukan keluaran metode sebenarnya dan tidak sah dipakai untuk
+              evaluasi.
+              <ul class="mb-0 mt-1 small">
+                {% for s in fallback %}
+                <li>{{ s.nama }} — <code>{{ s.versi }}</code>{% if s.keterangan %}: {{ s.keterangan }}{% endif %}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+          {% endif %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+
+        <footer class="pt-4 mt-4 border-top d-flex flex-wrap align-items-center gap-2">
+          <span class="small ink-3 me-auto">
+            DSS Bansos Bontoramba — IndoBERT · klasifikasi ML · Fuzzy TOPSIS (Chen 2000)
+          </span>
+          {% if status_model %}
+            {% for s in status_model %}
+            <span class="tag-versi" title="{{ s.keterangan or 'artefak asli dipakai' }}">
+              {% if s.fallback %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--st-crit)"></i>
+              {% else %}<span class="dot dot-good"></span>{% endif %}
+              {{ s.versi }}
+            </span>
             {% endfor %}
-          </ul>
-        </div>
-      </div>
-      {% endif %}
-    {% endif %}
-    {% block content %}{% endblock %}
-  </main>
-
-  <footer class="container pb-4">
-    <div class="d-flex flex-wrap align-items-center gap-2 pt-3 border-top">
-      <span class="small ink-3 me-auto">
-        DSS Bansos Bontoramba — IndoBERT · klasifikasi ML · Fuzzy TOPSIS (Chen 2000)
-      </span>
-      {% if status_model %}
-        {% for s in status_model %}
-        <span class="tag-versi" title="{{ s.keterangan or 'artefak asli dipakai' }}">
-          {% if s.fallback %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--st-crit)"></i>
-          {% else %}<span class="dot dot-good"></span>{% endif %}
-          {{ s.versi }}
-        </span>
-        {% endfor %}
-      {% endif %}
+          {% endif %}
+        </footer>
+      </main>
     </div>
-  </footer>
+  </div>
+{% else %}
+  {# Halaman tamu (masuk): tanpa sidebar. Blok `content` hanya boleh DIDEFINISIKAN sekali —
+     di cabang atas — jadi di sini ia dipanggil ulang lewat `self.content()`. #}
+  <main class="container py-4" id="konten">{{ self.content() }}</main>
+{% endif %}
 
   <script src="/static/vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="/static/vendor/htmx/htmx.min.js"></script>
-  <script>
-    // Tandai menu yang sedang dibuka — orientasi dasar yang selama ini tidak ada.
-    document.querySelectorAll('.app-navbar .nav-link').forEach(function (a) {
-      if (a.getAttribute('href') === window.location.pathname) a.classList.add('active');
-    });
-  </script>
 </body>
 </html>

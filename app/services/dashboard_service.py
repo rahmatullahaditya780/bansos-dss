@@ -7,6 +7,7 @@ yang dibutuhkan yang diambil, dan pencacahan dikerjakan basis data.
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from typing import Optional
 
@@ -46,6 +47,25 @@ def efisiensi(db: Session) -> metrics.RingkasanEfisiensi:
 
 def efektivitas(db: Session) -> metrics.RingkasanEfektivitas:
     return metrics.ringkas_efektivitas(verifikasi.pasangan_efektivitas(db))
+
+
+def tanda_ringkasan(r: DashboardRingkasan) -> str:
+    """Sidik ringkas isi ringkasan — dipakai memutuskan perlu-tidaknya menukar DOM.
+
+    Dashboard menarik ulang blok ringkasan tiap 5 detik. Sebelum Fase B, tiap tarikan selalu
+    mengganti seluruh blok meski angkanya sama persis: satu kedip tiap 5 detik, dan — begitu
+    grafik komposisi masuk — batangnya akan tumbuh ulang selamanya, persis gerak berulang yang
+    dilarang. Dengan sidik ini server menjawab `204 No Content` bila tak ada yang berubah, dan
+    HTMX tidak menukar apa pun.
+    """
+    isi = "|".join(
+        str(v) for v in (
+            r.total_pengajuan, r.baru, r.dianalisis, r.diverifikasi, r.layak, r.tidak_layak,
+            r.rata_durasi_ms, r.p50_durasi_ms, r.persen_le_5s, r.efisiensi_persen,
+            r.permintaan_cold, r.efektivitas_persen, r.pasangan_verifikasi,
+        )
+    )
+    return hashlib.blake2s(isi.encode("utf-8"), digest_size=8).hexdigest()
 
 
 def ringkasan(db: Session) -> DashboardRingkasan:

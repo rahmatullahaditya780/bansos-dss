@@ -1,8 +1,14 @@
 {# Hierarki dashboard: satu angka memimpin (yang menuntut tindakan), lalu putusan
    yang sudah diambil, lalu kinerja sistem. Sebelumnya delapan kartu berbobot sama
-   dan tidak ada yang memimpin. #}
+   dan tidak ada yang memimpin.
+
+   Blok ini MENARIK DIRINYA SENDIRI tiap 5 detik sambil membawa sidik isinya (`sig`). Server
+   menjawab 204 bila angkanya tidak berubah, sehingga tidak ada penukaran DOM — tanpa itu
+   halaman berkedip tiap 5 detik dan grafik di dalamnya tumbuh ulang selamanya. #}
+<div id="ringkasan" hx-get="/dashboard/ringkasan-partial?sig={{ tanda | default('') }}"
+     hx-trigger="every 5s" hx-swap="outerHTML">
 <div class="row g-3">
-  <div class="col-lg-5">
+  <div class="col-12 col-lg-5">
     <div class="card h-100">
       <div class="hero">
         <div>
@@ -17,7 +23,7 @@
     </div>
   </div>
 
-  <div class="col-lg-7">
+  <div class="col-12 col-lg-7">
     <div class="row g-3 h-100">
       <div class="col-6 col-md-3">
         <div class="stat">
@@ -107,4 +113,5 @@
     </div>
     {% endif %}
   </div>
+</div>
 </div>
