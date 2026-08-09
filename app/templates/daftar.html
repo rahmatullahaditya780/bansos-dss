@@ -4,36 +4,58 @@
 {% block content %}
 {{ ph.kepala("Daftar Pengajuan", "Cari, saring, dan buka detail hasil analisis") }}
 
+{# Semua penyaring dalam SATU baris di atas tabel. `urut` dan `hasil` ikut di URL supaya
+   pandangan yang sedang dilihat petugas dapat disalin dan dibagikan apa adanya. #}
 <form method="get" action="/daftar" class="row g-2 mb-3">
-  <div class="col-sm-6 col-md-5">
-    <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm"
+  <div class="col-12 col-md-4">
+    <label class="visually-hidden" for="cari">Cari nama atau NIK</label>
+    <input id="cari" type="search" name="q" value="{{ q }}" class="form-control form-control-sm"
            placeholder="Cari nama atau NIK…">
   </div>
-  <div class="col-sm-4 col-md-3">
-    <select name="status_filter" class="form-select form-select-sm">
-      <option value="" {% if not status_filter %}selected{% endif %}>Semua status</option>
-      <option value="baru" {% if status_filter == 'baru' %}selected{% endif %}>Baru</option>
-      <option value="dianalisis" {% if status_filter == 'dianalisis' %}selected{% endif %}>Dianalisis</option>
-      <option value="diverifikasi" {% if status_filter == 'diverifikasi' %}selected{% endif %}>Diverifikasi</option>
+  <div class="col-6 col-md-2">
+    <label class="visually-hidden" for="f-status">Status</label>
+    <select id="f-status" name="status_filter" class="form-select form-select-sm">
+      <option value="" {{ 'selected' if not status_filter }}>Semua status</option>
+      <option value="baru" {{ 'selected' if status_filter == 'baru' }}>Baru</option>
+      <option value="dianalisis" {{ 'selected' if status_filter == 'dianalisis' }}>Dianalisis</option>
+      <option value="diverifikasi" {{ 'selected' if status_filter == 'diverifikasi' }}>Diverifikasi</option>
     </select>
   </div>
-  <div class="col-sm-2">
-    <button class="btn btn-sm btn-outline-secondary w-100" type="submit">
-      <i class="bi bi-funnel"></i> Saring
+  <div class="col-6 col-md-2">
+    <label class="visually-hidden" for="f-hasil">Kelayakan</label>
+    <select id="f-hasil" name="hasil" class="form-select form-select-sm">
+      <option value="" {{ 'selected' if not hasil }}>Semua kelayakan</option>
+      <option value="layak" {{ 'selected' if hasil == 'layak' }}>Layak</option>
+      <option value="tidak_layak" {{ 'selected' if hasil == 'tidak_layak' }}>Tidak layak</option>
+      <option value="belum" {{ 'selected' if hasil == 'belum' }}>Belum dianalisis</option>
+    </select>
+  </div>
+  <div class="col-6 col-md-2">
+    <label class="visually-hidden" for="f-urut">Urutkan</label>
+    <select id="f-urut" name="urut" class="form-select form-select-sm">
+      {% for kunci, label in urutan_pilihan.items() %}
+      <option value="{{ kunci }}" {{ 'selected' if urut == kunci }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-2 d-flex gap-2">
+    <button class="btn btn-sm btn-outline-secondary flex-grow-1" type="submit">
+      <i class="bi bi-funnel"></i> Terapkan
     </button>
+    {% if q or status_filter or hasil or urut != 'terbaru' %}
+    <a href="/daftar" class="btn btn-sm btn-link px-1" title="Bersihkan penyaring">Reset</a>
+    {% endif %}
   </div>
-  {% if q or status_filter %}
-  <div class="col-sm-2">
-    <a href="/daftar" class="btn btn-sm btn-link w-100">Reset</a>
-  </div>
-  {% endif %}
 </form>
 
 <div class="card">
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table table-hover">
       <thead>
-        <tr><th>ID</th><th>Warga</th><th>NIK</th><th>Tanggungan</th><th>Status</th><th>Tanggal</th><th></th></tr>
+        <tr>
+          <th>ID</th><th>Warga</th><th>NIK</th><th class="num">Tanggungan</th>
+          <th>Kelayakan</th><th class="num">Peringkat</th><th>Status</th><th>Tanggal</th><th></th>
+        </tr>
       </thead>
       <tbody>
         {% for p in rows %}
@@ -42,15 +64,33 @@
           <td class="fw-medium">{{ p.warga.nama }}</td>
           <td class="small ink-3">{{ p.warga.nik }}</td>
           <td class="num">{{ p.warga.jumlah_tanggungan }}</td>
+          <td>
+            {% if p.prediksi_ml %}
+              {% if p.prediksi_ml.hasil == 'layak' %}
+                <span class="pill pill-good"><i class="bi bi-check-circle-fill"></i> Layak</span>
+              {% else %}
+                <span class="pill pill-mute"><i class="bi bi-slash-circle"></i> Tidak layak</span>
+              {% endif %}
+            {% else %}
+              <span class="ink-3 small">—</span>
+            {% endif %}
+          </td>
+          <td class="num">
+            {% if peringkat.get(p.id) %}
+              <span class="rank">#{{ peringkat[p.id] }}</span>
+            {% else %}<span class="ink-3">—</span>{% endif %}
+          </td>
           <td>{% include "partials/_status_badge.html" %}</td>
           <td class="text-nowrap small ink-2">{{ p.tanggal.strftime("%d-%m-%Y %H:%M") }}</td>
-          <td class="text-end"><a href="/detail/{{ p.id }}" class="btn btn-sm btn-outline-secondary">Detail</a></td>
+          <td class="text-end">
+            <a href="/detail/{{ p.id }}" class="btn btn-sm btn-outline-secondary">Detail</a>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="7">
+        <tr><td colspan="9">
           <div class="empty-state">
             <i class="bi bi-search"></i>
-            {% if q or status_filter %}Tidak ada pengajuan yang cocok dengan penyaring.
+            {% if q or status_filter or hasil %}Tidak ada pengajuan yang cocok dengan penyaring.
             {% else %}Belum ada pengajuan.{% endif %}
           </div>
         </td></tr>
@@ -62,14 +102,16 @@
 
 <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
   <span class="small ink-3">
-    {{ total }} pengajuan{% if q or status_filter %} cocok{% endif %} · halaman {{ halaman }} dari {{ jumlah_halaman }}
+    {{ total }} pengajuan{% if q or status_filter or hasil %} cocok{% endif %} ·
+    halaman {{ halaman }} dari {{ jumlah_halaman }}
   </span>
   {% if jumlah_halaman > 1 %}
-  {% set qs = '&q=' ~ q ~ '&status_filter=' ~ status_filter %}
-  <nav>
+  {% set qs = '&q=' ~ q ~ '&status_filter=' ~ status_filter ~ '&hasil=' ~ hasil ~ '&urut=' ~ urut %}
+  <nav aria-label="Halaman daftar">
     <ul class="pagination pagination-sm mb-0">
       <li class="page-item {{ 'disabled' if halaman <= 1 }}">
-        <a class="page-link" href="/daftar?halaman={{ halaman - 1 }}{{ qs }}">&laquo;</a>
+        <a class="page-link" href="/daftar?halaman={{ halaman - 1 }}{{ qs }}"
+           aria-label="Halaman sebelumnya">&laquo;</a>
       </li>
       {% for h in range(1, jumlah_halaman + 1) %}
         {% if h <= 2 or h > jumlah_halaman - 2 or (h - halaman) | abs <= 1 %}
@@ -81,7 +123,8 @@
         {% endif %}
       {% endfor %}
       <li class="page-item {{ 'disabled' if halaman >= jumlah_halaman }}">
-        <a class="page-link" href="/daftar?halaman={{ halaman + 1 }}{{ qs }}">&raquo;</a>
+        <a class="page-link" href="/daftar?halaman={{ halaman + 1 }}{{ qs }}"
+           aria-label="Halaman berikutnya">&raquo;</a>
       </li>
     </ul>
   </nav>

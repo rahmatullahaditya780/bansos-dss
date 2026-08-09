@@ -8,7 +8,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import models
@@ -142,6 +142,54 @@ def analisis_pengajuan(db: Session, pengajuan: models.Pengajuan) -> dict:
         "durasi_tier1_ms": durasi_tier1_ms,
         "durasi_tier2_ms": durasi_tier2_ms,
         "jenis_muat": "warm" if hangat else "cold",
+    }
+
+
+def jumlah_menunggu_analisis(db: Session) -> int:
+    """Berapa pengajuan berdata lengkap yang belum pernah dianalisis."""
+    return db.execute(
+        select(func.count())
+        .select_from(models.Pengajuan)
+        .join(models.DataSurvei)
+        .outerjoin(models.PrediksiML)
+        .where(models.PrediksiML.id.is_(None))
+    ).scalar_one()
+
+
+def analisis_batch(db: Session, limit: int = 25) -> dict:
+    """Analisis sekelompok pengajuan yang belum pernah dianalisis (Tier 1 → Tier 2).
+
+    Dashboard menyebut ribuan pengajuan menunggu analisis sementara satu-satunya jalan
+    mengerjakannya adalah satu per satu — angka utama halaman itu tidak dapat ditindaklanjuti.
+    Fungsi ini **memanggil ulang `analisis_pengajuan()`**, bukan menulis logika tier baru:
+    durasi per pengajuan, penanda cold/warm, dan penyimpanan hasil tetap persis sama, sehingga
+    FR-25 tidak berubah dan satu baris log tetap berarti satu analisis.
+
+    `limit` sengaja kecil: tiap panggilan harus selesai cepat agar antarmuka dapat memperlihatkan
+    kemajuan per gelombang alih-alih menggantung pada satu permintaan panjang.
+    """
+    kandidat = db.execute(
+        select(models.Pengajuan)
+        .join(models.DataSurvei)
+        .outerjoin(models.PrediksiML)
+        .where(models.PrediksiML.id.is_(None))
+        .order_by(models.Pengajuan.id)
+        .limit(max(1, limit))
+    ).scalars().all()
+
+    diproses, gagal = 0, 0
+    for p in kandidat:
+        try:
+            analisis_pengajuan(db, p)
+            diproses += 1
+        except Exception:  # noqa: BLE001 — satu pengajuan bermasalah tidak boleh menghentikan batch
+            db.rollback()
+            gagal += 1
+
+    return {
+        "diproses": diproses,
+        "gagal": gagal,
+        "sisa": jumlah_menunggu_analisis(db),
     }
 
 

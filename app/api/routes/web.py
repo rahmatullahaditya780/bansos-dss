@@ -142,8 +142,50 @@ def dashboard_partial(
     )
 
 
+@router.post("/dashboard/analisis-batch", response_class=HTMLResponse)
+def dashboard_analisis_batch(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: Optional[models.User] = Depends(get_optional_user),
+    sudah: int = 0,
+    gagal: int = 0,
+    # 15 × ~200 ms ≈ 3 detik per gelombang. Terukur: 25 pengajuan memakan 4.949 ms — tepat di
+    # garis 5 detik yang dipakai proyek ini menilai dirinya sendiri (NFR-01), jadi sengaja
+    # diambil lebih kecil. Total waktu keseluruhan tidak berubah, hanya kabarnya lebih sering.
+    limit: int = 15,
+):
+    """Satu gelombang analisis massal; pecahan yang dikembalikan memicu gelombang berikutnya.
+
+    Menutup cacat yang paling terasa: dashboard menyebut ribuan pengajuan menunggu sementara
+    petugas hanya bisa menganalisis satu per satu lewat halaman detail.
+    """
+    if not _require(user):
+        return HTMLResponse("", status_code=status.HTTP_401_UNAUTHORIZED)
+
+    hasil = pipeline.analisis_batch(db, limit=min(max(1, limit), 100))
+    return templates.TemplateResponse(
+        request,
+        "partials/_batch_progres.html",
+        {
+            "total_diproses": sudah + hasil["diproses"],
+            "total_gagal": gagal + hasil["gagal"],
+            # Bila satu gelombang penuh gagal semua, hentikan rantainya daripada berputar selamanya.
+            "sisa": hasil["sisa"] if hasil["diproses"] else 0,
+        },
+    )
+
+
 # ---- Daftar pengajuan ----
 UKURAN_HALAMAN = 25
+
+# Pilihan pengurutan daftar. Kunci dipakai di URL (`?urut=`), sehingga pilihan petugas ikut
+# tersalin saat tautan dibagikan.
+URUTAN = {
+    "terbaru": ("Terbaru", models.Pengajuan.tanggal.desc()),
+    "terlama": ("Terlama", models.Pengajuan.tanggal.asc()),
+    "nama": ("Nama A–Z", models.Warga.nama.asc()),
+    "tanggungan": ("Tanggungan terbanyak", models.Warga.jumlah_tanggungan.desc()),
+}
 
 
 @router.get("/daftar", response_class=HTMLResponse)
@@ -153,23 +195,37 @@ def daftar(
     user: Optional[models.User] = Depends(get_optional_user),
     q: str = "",
     status_filter: str = "",
+    hasil: str = "",
+    urut: str = "terbaru",
     halaman: int = 1,
 ):
-    """Daftar pengajuan berpaginasi + penyaring status + pencarian NIK/nama (Fase 5, D-06).
+    """Daftar pengajuan: paginasi, pencarian, penyaring status & kelayakan, pengurutan.
 
-    Sampai Fase 4 rute ini merender SELURUH tabel: 2.020 baris = 833 KiB dan 1,8 detik, yang
-    1,775 detik di antaranya render karena `p.warga` diakses per baris (N+1). `joinedload`
-    menutup N+1; paginasi menjaga halaman tetap ringan saat data lokal masuk (Fase 6).
+    Sampai Fase 4 rute ini merender SELURUH tabel (2.020 baris = 833 KiB, 1,8 detik, pola N+1)
+    dan **tidak menampilkan hasil apa pun** — tanpa kolom kelayakan maupun peringkat, petugas
+    harus membuka detail satu per satu untuk mengetahui apa pun. Keduanya ditutup di sini:
+    `prediksi_ml` ikut dimuat lewat `joinedload`, dan peringkat batch terakhir diambil dalam
+    satu kueri untuk baris yang tampil saja.
     """
     if not _require(user):
         return _redirect("/login")
 
-    stmt = select(models.Pengajuan).join(models.Warga).options(
-        joinedload(models.Pengajuan.warga)
+    stmt = (
+        select(models.Pengajuan)
+        .join(models.Warga)
+        .outerjoin(models.PrediksiML)
+        .options(
+            joinedload(models.Pengajuan.warga),
+            joinedload(models.Pengajuan.prediksi_ml),
+        )
     )
     if status_filter in (models.StatusPengajuan.BARU, models.StatusPengajuan.DIANALISIS,
                          models.StatusPengajuan.DIVERIFIKASI):
         stmt = stmt.where(models.Pengajuan.status == status_filter)
+    if hasil in (models.HasilKelayakan.LAYAK, models.HasilKelayakan.TIDAK_LAYAK):
+        stmt = stmt.where(models.PrediksiML.hasil == hasil)
+    elif hasil == "belum":
+        stmt = stmt.where(models.PrediksiML.id.is_(None))
     kata = q.strip()
     if kata:
         pola = f"%{kata}%"
@@ -182,11 +238,32 @@ def daftar(
     jumlah_halaman = max(1, -(-total // UKURAN_HALAMAN))
     halaman = min(halaman, jumlah_halaman)
 
+    urut = urut if urut in URUTAN else "terbaru"
     rows = db.execute(
-        stmt.order_by(models.Pengajuan.tanggal.desc())
+        stmt.order_by(URUTAN[urut][1])
         .offset((halaman - 1) * UKURAN_HALAMAN)
         .limit(UKURAN_HALAMAN)
     ).scalars().all()
+
+    # Peringkat batch terakhir untuk baris yang TAMPIL saja — satu kueri tambahan, bukan satu
+    # per baris; pola N+1 sudah pernah membuat halaman ini memakan 1,8 detik.
+    peringkat: dict[int, int] = {}
+    if rows:
+        batch_id = db.execute(
+            select(models.RankingTopsis.batch_id)
+            .order_by(models.RankingTopsis.created_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if batch_id:
+            peringkat = dict(
+                db.execute(
+                    select(models.RankingTopsis.pengajuan_id, models.RankingTopsis.peringkat)
+                    .where(
+                        models.RankingTopsis.batch_id == batch_id,
+                        models.RankingTopsis.pengajuan_id.in_([p.id for p in rows]),
+                    )
+                ).all()
+            )
 
     return templates.TemplateResponse(
         request,
@@ -194,8 +271,12 @@ def daftar(
         _ctx(
             user,
             rows=rows,
+            peringkat=peringkat,
             q=kata,
             status_filter=status_filter,
+            hasil=hasil,
+            urut=urut,
+            urutan_pilihan={k: v[0] for k, v in URUTAN.items()},
             halaman=halaman,
             jumlah_halaman=jumlah_halaman,
             total=total,

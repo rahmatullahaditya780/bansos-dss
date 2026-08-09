@@ -17,9 +17,26 @@
         </div>
         <div class="hero-context">
           dari {{ r.total_pengajuan }} pengajuan<br>
-          <a href="/daftar?status_filter=baru" class="small">Buka daftarnya &rarr;</a>
+          <a href="/daftar?hasil=belum" class="small">Buka daftarnya &rarr;</a>
         </div>
       </div>
+      {% if r.baru %}
+      {# Angka utama halaman ini harus dapat ditindaklanjuti. Sebelumnya ia menyebut ribuan
+         pengajuan menunggu tanpa satu pun jalan mengerjakannya selain membuka detail satu
+         per satu.
+
+         Wadah kemajuannya sengaja BUKAN di sini melainkan di dashboard.html, di luar blok yang
+         menarik dirinya sendiri: tiap gelombang mengubah angka, angka berubah membuat blok ini
+         ditukar, dan wadah yang ikut di dalamnya akan terhapus bersama pemicu rantainya —
+         analisis massal berhenti sendiri setelah satu gelombang. #}
+      <div class="px-3 pb-3">
+        <button class="btn btn-primary btn-sm w-100"
+                hx-post="/dashboard/analisis-batch"
+                hx-target="#batch-progres" hx-swap="innerHTML">
+          <i class="bi bi-cpu"></i> Analisis pengajuan yang menunggu
+        </button>
+      </div>
+      {% endif %}
     </div>
   </div>
 

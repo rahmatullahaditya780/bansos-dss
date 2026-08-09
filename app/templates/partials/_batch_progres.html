@@ -1,0 +1,50 @@
+{# Kemajuan analisis massal.
+
+   Dikerjakan per gelombang, bukan satu permintaan panjang: tiap gelombang mengembalikan pecahan
+   ini, dan selama masih ada sisa, pecahan ini MEMICU GELOMBANG BERIKUTNYA sendiri
+   (hx-trigger="load"). Akibatnya petugas melihat kemajuan bergerak alih-alih menunggu satu
+   permintaan yang menggantung berpuluh detik, dan tombol Hentikan cukup membuang elemen ini —
+   rantainya ikut berhenti karena pemicunya lenyap bersamanya.
+
+   Angka ringkasan di atas tidak perlu disegarkan dari sini: blok ringkasan sudah menarik dirinya
+   sendiri tiap 5 detik dan kini hanya menukar DOM saat angkanya benar-benar berubah. #}
+<div id="batch-kotak" class="alert alert-catatan mb-0" aria-live="polite">
+  {% if sisa <= 0 %}
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle-fill" style="color: var(--st-good)"></i>
+      <span><strong>Selesai.</strong> {{ total_diproses }} pengajuan dianalisis pada sesi ini;
+        tidak ada lagi yang menunggu.</span>
+    </div>
+    {% if total_gagal %}
+    <div class="small mt-1">
+      <i class="bi bi-exclamation-triangle-fill" style="color: var(--st-warn)"></i>
+      {{ total_gagal }} pengajuan dilewati karena datanya bermasalah — buka detailnya satu per satu
+      untuk melihat sebabnya.
+    </div>
+    {% endif %}
+  {% else %}
+    {% set persen_selesai = (total_diproses / (total_diproses + sisa) * 100) if (total_diproses + sisa) else 0 %}
+    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+      <span>
+        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        Menganalisis… <strong>{{ total_diproses }}</strong> selesai ·
+        <strong>{{ sisa }}</strong> menunggu
+      </span>
+      <button type="button" class="btn btn-sm btn-outline-secondary"
+              onclick="this.closest('#batch-kotak').remove()">
+        <i class="bi bi-stop-circle"></i> Hentikan
+      </button>
+    </div>
+
+    <div class="meter mt-2" role="progressbar" aria-valuenow="{{ persen_selesai | round(0) | int }}"
+         aria-valuemin="0" aria-valuemax="100">
+      <div class="meter-fill" style="width: {{ persen_selesai | round(1) }}%"></div>
+    </div>
+
+    {# Pemicu gelombang berikutnya. `sudah` diteruskan supaya hitungannya berlanjut tanpa
+       menyimpan keadaan apa pun di server. #}
+    <span hx-post="/dashboard/analisis-batch?sudah={{ total_diproses }}&gagal={{ total_gagal }}"
+          hx-target="#batch-kotak" hx-swap="outerHTML"
+          hx-trigger="load delay:300ms"></span>
+  {% endif %}
+</div>

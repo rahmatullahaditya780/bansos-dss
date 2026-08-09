@@ -24,6 +24,21 @@ def analisis_ranking(
     return pipeline.jalankan_ranking(db)
 
 
+@router.post("/batch")
+def analisis_batch(
+    limit: int = 25,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_petugas),
+) -> dict:
+    """Analisis sekelompok pengajuan yang belum pernah dianalisis (FR-15, FR-25).
+
+    Rute statis, karena itu HARUS terdaftar sebelum `/{pengajuan_id}` — pola yang sama dengan
+    `/ranking`. Memanggil ulang jalur analisis satu-pengajuan, jadi tidak ada logika tier baru
+    dan pencatatan durasi tetap per pengajuan.
+    """
+    return pipeline.analisis_batch(db, limit=min(max(1, limit), 200))
+
+
 @router.post("/{pengajuan_id}", response_model=AnalisisResult)
 def analisis_satu(
     pengajuan_id: int,
