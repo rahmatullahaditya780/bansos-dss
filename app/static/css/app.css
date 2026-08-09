@@ -321,6 +321,63 @@ code {
 .meter-fill.is-warn { background: var(--st-warn); }
 .meter-fill.is-crit { background: var(--st-crit); }
 
+/* ------------------------------------------------------- grafik sebaran ---
+   Batang: lebar dibatasi oleh binnya sendiri dengan celah 2px permukaan sebagai pemisah
+   (bukan garis tepi — garis tepi menambah tinta yang bukan data); ujung data membulat 4px,
+   pangkal siku di garis dasar. */
+.grafik-sebaran {
+  position: relative;
+  height: 132px;
+  border-bottom: 1px solid var(--line);
+}
+.grafik-sebaran .bin {
+  position: absolute;
+  bottom: 0;
+  top: 0;
+  padding: 0 1px;              /* setengah celah di tiap sisi = celah 2px antar batang */
+  display: flex;
+  align-items: flex-end;
+}
+.grafik-sebaran .bin-isi {
+  width: 100%;
+  background: var(--data-2);
+  border-radius: 4px 4px 0 0;
+  min-height: 1px;
+}
+.grafik-sebaran .bin:hover .bin-isi { background: var(--data-4); }
+
+.grafik-sebaran .garis-potong {
+  position: absolute;
+  top: -4px;
+  bottom: 0;
+  border-left: 2px dashed var(--st-crit);
+}
+.grafik-sebaran .garis-label {
+  position: absolute;
+  top: -2px;
+  left: 4px;
+  font-size: var(--fs-6);
+  font-weight: 600;
+  color: var(--st-crit-ink);
+  background: var(--surface);
+  padding: 0 .25rem;
+  white-space: nowrap;
+}
+
+/* Batang komposisi: satu batang bertumpuk, celah 2px permukaan antar segmen. */
+.komposisi { display: flex; gap: 2px; height: .9rem; }
+.komposisi > span { display: block; border-radius: 2px; }
+.komposisi > span:first-child { border-radius: 999px 2px 2px 999px; }
+.komposisi > span:last-child { border-radius: 2px 999px 999px 2px; }
+.seg-1 { background: var(--data-1); }
+.seg-2 { background: var(--data-2); }
+.seg-3 { background: var(--data-3); }
+.seg-4 { background: var(--data-4); }
+.seg-mute { background: #d7dbdf; }
+
+.legenda { display: flex; flex-wrap: wrap; gap: var(--sp-3); font-size: var(--fs-5); }
+.legenda span.kunci { width: .7rem; height: .7rem; border-radius: 3px; display: inline-block; }
+
 /* --------------------------------------------------------- pil status ---
    Warna TIDAK PERNAH sendirian: tiap pil membawa ikon dan kata. Kuning
    status hanya 1,72:1 di atas surface ini — pasangan ikon+kata itulah

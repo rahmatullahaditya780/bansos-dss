@@ -20,7 +20,7 @@ from app.core.security import create_access_token
 from app.db import models
 from app.db.session import get_db
 from app.schemas.pengajuan import DataSurveiIn, PengajuanCreate, TeksNaratifIn, WargaIn
-from app.services import dashboard_service, pipeline
+from app.services import dashboard_service, grafik, pipeline
 from app.services import verifikasi as verifikasi_service
 from app.services.pengajuan_service import create_pengajuan
 from app.templating import templates
@@ -406,6 +406,7 @@ def peringkat(
     request: Request,
     db: Session = Depends(get_db),
     user: Optional[models.User] = Depends(get_optional_user),
+    kuota: int = 50,
 ):
     """Tampilkan batch terakhir yang TERSIMPAN — tanpa menghitung ulang.
 
@@ -415,10 +416,16 @@ def peringkat(
     """
     if not _require(user):
         return _redirect("/login")
+    hasil = _batch_terakhir(db)
+    # Kuota BUKAN keputusan sistem — ia kebijakan kelurahan yang belum ditetapkan (OI-12/Fase 6).
+    # Karena itu ia parameter yang dapat dicoba petugas, dan dilabeli sebagai garis potong yang
+    # disimulasikan, bukan sebagai angka resmi.
+    nilai = [it["nilai_preferensi"] for it in hasil["ranking"]] if hasil else []
+    sebaran = grafik.histogram(nilai, bins=24, kuota=max(1, kuota) if nilai else None)
     return templates.TemplateResponse(
         request,
         "peringkat.html",
-        _ctx(user, hasil=_batch_terakhir(db)),
+        _ctx(user, hasil=hasil, sebaran=sebaran),
     )
 
 

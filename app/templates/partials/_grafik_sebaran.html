@@ -1,0 +1,56 @@
+{# Sebaran nilai preferensi + garis potong kuota.
+
+   Pekerjaan grafik ini bukan memamerkan bentuk, melainkan menjawab satu pertanyaan yang tidak
+   dapat dijawab tabel: APAKAH GARIS KUOTA JATUH DI DAERAH PADAT ATAU RENGGANG. Bila padat,
+   pemenang terakhir dan yang pertama tidak lolos hampir tak berbeda — dan itu keterangan yang
+   wajib diketahui petugas sebelum menandatangani daftar penerima.
+
+   Satu hue (pekerjaan datanya magnitudo, bukan identitas), garis dasar tipis, label selektif,
+   dan padanan angkanya tetap ada di tabel di bawah — tidak ada informasi yang hanya hidup di
+   gambar ini. Batang tumbuh sekali saat pertama digambar, lalu diam. #}
+{% if sebaran.ada_isi %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span>Sebaran nilai preferensi</span>
+    <form method="get" action="/peringkat" class="d-flex align-items-center gap-2">
+      <label for="kuota" class="small ink-3 mb-0">Garis potong kuota</label>
+      <input id="kuota" type="number" name="kuota" value="{{ sebaran.kuota or '' }}" min="1"
+             max="{{ sebaran.n }}" class="form-control form-control-sm" style="width: 6rem">
+      <button class="btn btn-sm btn-outline-secondary" type="submit">Terapkan</button>
+    </form>
+  </div>
+  <div class="card-body">
+    <div class="grafik-sebaran" role="img"
+         aria-label="Histogram {{ sebaran.n }} nilai preferensi dari {{ '%.3f' | format(sebaran.minimum) }} sampai {{ '%.3f' | format(sebaran.maksimum) }}{% if sebaran.nilai_potong %}, garis potong kuota {{ sebaran.kuota }} pada nilai {{ '%.4f' | format(sebaran.nilai_potong) }}{% endif %}">
+      {% for b in sebaran.bins %}
+      <div class="bin" style="left: {{ b.kiri_persen }}%; width: {{ b.lebar_persen }}%"
+           title="{{ '%.3f' | format(b.x0) }}–{{ '%.3f' | format(b.x1) }} · {{ b.n }} pengajuan">
+        <div class="bin-isi mark-tumbuh" style="height: {{ b.tinggi_persen }}%"></div>
+      </div>
+      {% endfor %}
+
+      {% if sebaran.potong_persen is not none %}
+      <div class="garis-potong" style="left: {{ sebaran.potong_persen }}%">
+        <span class="garis-label">kuota {{ sebaran.kuota }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="d-flex justify-content-between small ink-3 mt-1">
+      <span>{{ '%.3f' | format(sebaran.minimum) }}</span>
+      <span>nilai preferensi &rarr;</span>
+      <span>{{ '%.3f' | format(sebaran.maksimum) }}</span>
+    </div>
+
+    {% if sebaran.nilai_potong is not none %}
+    <div class="alert alert-catatan mt-3 mb-0">
+      Dengan kuota <strong>{{ sebaran.kuota }}</strong> dari {{ sebaran.n }} alternatif, penerima
+      terakhir bernilai preferensi <strong>{{ '%.4f' | format(sebaran.nilai_potong) }}</strong>.
+      Perhatikan kepadatan batang tepat di garis itu: makin padat, makin kecil selisih nyata antara
+      yang lolos terakhir dan yang pertama tidak lolos — di daerah seperti itu urutan sangat peka
+      terhadap bobot yang masih provisional (OI-12).
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

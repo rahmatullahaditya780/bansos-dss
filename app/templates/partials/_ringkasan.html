@@ -74,6 +74,53 @@
   </div>
 </div>
 
+{# Komposisi: bagian-terhadap-keseluruhan yang menerangkan angka utama di atas. Ramp ordinal
+   satu hue (tahapan proses, bukan identitas), celah 2px permukaan antar segmen, dan legenda selalu
+   ada karena segmennya lebih dari satu. Angka tiap segmen tetap tertulis di legendanya, jadi
+   tidak ada yang hanya terbaca dari warna. #}
+{% set komposisi = [('Belum dianalisis', r.baru), ('Dianalisis', r.dianalisis),
+                    ('Diverifikasi', r.diverifikasi)] | selectattr(1) | list %}
+<div class="card mt-3">
+  <div class="card-body">
+    <div class="metric-label mb-2">Tahapan {{ r.total_pengajuan }} pengajuan</div>
+    <div class="komposisi">
+      {% for label, n in komposisi %}
+      <span class="seg-{{ loop.index }}" style="width: {{ n / r.total_pengajuan * 100 }}%"
+            title="{{ label }}: {{ n }}"></span>
+      {% endfor %}
+    </div>
+    <div class="legenda mt-2 ink-2">
+      {% for label, n in komposisi %}
+      <span class="d-inline-flex align-items-center gap-1">
+        <span class="kunci seg-{{ loop.index }}"></span> {{ label }}
+        <strong class="ink-1">{{ n }}</strong>
+      </span>
+      {% endfor %}
+    </div>
+
+    {% if r.layak or r.tidak_layak %}
+    {# Penegasan, bukan dua warna sederajat: yang jadi pokok adalah yang LAYAK; sisanya konteks. #}
+    <div class="metric-label mt-3 mb-2">Dari yang sudah dianalisis</div>
+    <div class="komposisi">
+      <span class="seg-3" style="width: {{ r.layak / (r.layak + r.tidak_layak) * 100 }}%"
+            title="Layak: {{ r.layak }}"></span>
+      <span class="seg-mute" style="width: {{ r.tidak_layak / (r.layak + r.tidak_layak) * 100 }}%"
+            title="Tidak layak: {{ r.tidak_layak }}"></span>
+    </div>
+    <div class="legenda mt-2 ink-2">
+      <span class="d-inline-flex align-items-center gap-1">
+        <span class="kunci seg-3"></span> Layak <strong class="ink-1">{{ r.layak }}</strong>
+        <span class="ink-3">— masuk perangkingan</span>
+      </span>
+      <span class="d-inline-flex align-items-center gap-1">
+        <span class="kunci seg-mute"></span> Tidak layak
+        <strong class="ink-1">{{ r.tidak_layak }}</strong>
+      </span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
 {# Strip kinerja — dipisahkan dari cacah pengajuan karena menjawab pertanyaan
    yang berbeda: bukan "berapa banyak", melainkan "apakah sistemnya memadai". #}
 <div class="card mt-3">
