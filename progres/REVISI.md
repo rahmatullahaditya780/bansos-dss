@@ -8,6 +8,55 @@ perbaikan bug penting, penggantian pustaka/versi, dan hasil pengujian yang mengu
 
 ---
 
+## 2026-08-09 — Peningkatan UI/UX dashboard (enam tahap, satu commit per tahap)
+
+Lanjutan dari pembenahan visual 08-08, kali ini menyentuh kerangka aplikasi, alur kerja, dan
+kesiapan tampil. Rencana lengkap di `~/.claude/plans/buat-rencana-untuk-meningkatkan-nested-wombat.md`.
+Tes naik **107 → 126**.
+
+**A. Aset lokal (prasyarat).** Bootstrap 5.3.3, Bootstrap Icons 1.11.3, HTMX 1.9.12, dan Inter
+Variable divendorkan ke `app/static/vendor/` (±790 KB). Sebelumnya semuanya dari CDN — tanpa
+internet, di ruang sidang atau di kantor kelurahan, dashboard tampil **tanpa gaya sama sekali**.
+
+**B. Kerangka aplikasi.** Sidebar kiri (offcanvas di ponsel) dengan penanda menu aktif ditentukan
+di server; macro kepala halaman menggantikan pola yang diulang di enam template; token tipografi &
+jarak; lapisan gerak fungsional dengan tiga larangan tertulis dan `prefers-reduced-motion`.
+**Repaint 5 detik dihentikan**: blok ringkasan membawa sidik isinya dan server menjawab `204`
+bila tak ada yang berubah — tanpa ini grafik di dalamnya akan tumbuh ulang selamanya.
+
+**C. Alur kerja.** Analisis massal per gelombang (menutup cacat: dashboard menyebut 1.720 menunggu
+tanpa jalan mengerjakannya); daftar kini menampilkan **kelayakan dan peringkat** plus penyaring &
+pengurutan (sebelumnya 2.020 baris tanpa satu pun keterangan hasil); toast ber-`aria-live` untuk
+tiga tindakan; navigasi antar-pengajuan; formulir bersekat dengan pemberitahuan bahwa **mutu narasi
+ikut menentukan peringkat** — hal yang selama ini tidak pernah disampaikan ke petugas.
+
+**D. Grafik** (HTML/CSS, tanpa pustaka). Sebaran nilai preferensi + garis potong kuota, komposisi
+tahapan, meter durasi terhadap anggaran 5 detik. **Temuan langsung dari grafik pertama:** dengan
+kuota 50 dari 145 alternatif, penerima terakhir bernilai 0,6340 — tepat di **puncak sebaran**,
+daerah terpadat, tempat urutan paling peka terhadap bobot provisional (OI-12). Tren harian sengaja
+tidak dibuat: pengajuan hanya tersebar di dua tanggal.
+
+**E–F.** Gaya cetak untuk lampiran skripsi, ekspor CSV peringkat berkepala `batch_id`/`versi_metode`/
+`versi_konfigurasi`, nama terbaca pada seluruh kendali beriko-saja (diperiksa otomatis, 0 pelanggaran),
+dan `tests/test_ui.py` (19 tes) — sebelumnya **tidak ada satu pun tes yang memeriksa isi HTML**.
+
+**Empat cacat yang hanya tersingkap karena halamannya dijalankan dan dilihat:**
+1. **Alat uji sendiri yang berbohong.** Bidikan layar sempit tampak terpotong; setelah diukur
+   (iframe 390px + walk DOM) ternyata `scrollWidth` 375 < 390 — tidak ada luapan. Edge headless
+   menata halaman pada lebar minimumnya lalu memotong kanvas. Alat bidik diganti bingkai iframe.
+2. **Wadah kemajuan batch semula di dalam blok yang menarik dirinya sendiri** — tiap gelombang
+   mengubah angka, blok ditukar, wadah dan pemicu rantainya ikut terhapus; analisis massal berhenti
+   setelah satu gelombang.
+3. **Gelombang 25 pengajuan memakan 4.949 ms** — tepat di garis 5 detik yang dipakai proyek ini
+   menilai dirinya; diturunkan ke 15.
+4. **Borang penyaring tetap tercetak** meski aturan `form { display: none !important }` ada:
+   `.d-flex` Bootstrap juga `!important` dan spesifisitasnya menang. Baru terlihat saat pratinjau
+   cetaknya benar-benar dibuka.
+
+**Yang sengaja tidak dikerjakan meski ada di rencana:** kartu bertab di halaman detail. Tab
+menyembunyikan data survei di balik satu klik, padahal saat memverifikasi petugas justru perlu
+membaca demografi, kondisi rumah, dan hasil analisis bersamaan.
+
 ## 2026-08-08 — Fase 5 (lanjutan): sistem visual dashboard dikerjakan ulang
 
 **Pemicu:** dashboard selesai secara fungsi tetapi lemah secara tampilan. Ditimbang lebih dulu

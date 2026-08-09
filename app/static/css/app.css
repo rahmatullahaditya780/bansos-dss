@@ -546,3 +546,34 @@ code {
   .hero-figure { font-size: 2.4rem; }
   .stat-value { font-size: 1.35rem; }
 }
+
+/* ---------------------------------------------------------------- cetak ---
+   Lampiran skripsi dicetak langsung dari halaman ini, bukan dari tangkapan layar yang terpotong.
+   Yang dibuang: kerangka aplikasi dan segala kendali. Yang dijaga: penanda versi model — angka
+   hasil cetak tanpa keterangan model yang menghasilkannya tidak dapat ditelusuri. */
+@media print {
+  /* `form[method]` dan `.card-header form`, bukan sekadar `form`: kelas tata letak Bootstrap
+     seperti `.d-flex` memakai `!important`, dan pada tingkat kepentingan yang sama pemenangnya
+     ditentukan spesifisitas — selektor elemen polos kalah, sehingga borang penyaring tetap
+     tercetak. Terlihat saat pratinjau cetaknya benar-benar dilihat, bukan saat aturannya ditulis. */
+  .sidebar, .topbar, .lewati, #toast-wilayah,
+  .pagination, .btn, #batch-progres,
+  form, form[method], .card-header form { display: none !important; }
+
+  .app-main { margin-left: 0 !important; }
+  body { background: #fff; }
+
+  .card {
+    border: 1px solid #999 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .table-responsive { overflow: visible !important; }
+  thead { display: table-header-group; }   /* kepala tabel diulang tiap halaman */
+  tr, .metric, .stat { break-inside: avoid; }
+
+  a[href]::after { content: ""; }          /* jangan cetak URL di belakang tautan */
+  .tag-versi { border-color: #999 !important; }
+  .grafik-sebaran .bin-isi { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .komposisi > span, .meter-fill { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}

@@ -5,11 +5,13 @@ login, dialihkan ke /login.
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
@@ -488,6 +490,48 @@ def peringkat_run(
     return _toast(
         templates.TemplateResponse(request, "partials/_ranking_table.html", {"hasil": hasil}),
         f"Batch {hasil['batch_id']} selesai — {hasil['jumlah_alternatif']} alternatif dirangking.",
+    )
+
+
+@router.get("/peringkat/ekspor.csv")
+def peringkat_ekspor(
+    db: Session = Depends(get_db),
+    user: Optional[models.User] = Depends(get_optional_user),
+):
+    """Unduh batch peringkat terakhir sebagai CSV untuk lampiran skripsi.
+
+    Kepala berkas memuat `batch_id`, `versi_metode`, dan `versi_konfigurasi`. Angka yang disalin
+    ke skripsi harus selalu dapat ditelusuri ke konfigurasi yang menghasilkannya — tanpa itu,
+    tabel di lampiran tidak dapat dibedakan dari tabel batch mana pun yang lain.
+    """
+    if not _require(user):
+        return _redirect("/login")
+    hasil = _batch_terakhir(db)
+    if not hasil:
+        return HTMLResponse("Belum ada batch perangkingan.", status_code=status.HTTP_404_NOT_FOUND)
+
+    baris = io.StringIO()
+    tulis = csv.writer(baris)
+    tulis.writerow(["# batch_id", hasil["batch_id"]])
+    tulis.writerow(["# versi_metode", hasil["versi_metode"] or "-"])
+    tulis.writerow(["# versi_konfigurasi", hasil["versi_konfigurasi"] or "-"])
+    tulis.writerow(["# jumlah_alternatif", hasil["jumlah_alternatif"]])
+    tulis.writerow([])
+    tulis.writerow(["peringkat", "pengajuan_id", "nama_warga", "nilai_preferensi",
+                    "skor_urgensi", "seri_dengan", "kategori_kriteria"])
+    for it in hasil["ranking"]:
+        keanggotaan = it.get("keanggotaan") or {}
+        tulis.writerow([
+            it["peringkat"], it["pengajuan_id"], it["warga_nama"],
+            it["nilai_preferensi"], it["skor_urgensi"], it.get("seri_dengan") or 0,
+            "; ".join(f"{k}={v}" for k, v in keanggotaan.items()),
+        ])
+    return Response(
+        content=baris.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="peringkat-{hasil["batch_id"]}.csv"'
+        },
     )
 
 

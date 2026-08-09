@@ -4,6 +4,9 @@
 {% block content %}
 {% call ph.kepala("Peringkat Prioritas",
                   "Fuzzy TOPSIS Chen (2000) — hanya pengajuan yang lolos Tier 2 (OI-15)") %}
+  <a class="btn btn-outline-secondary" href="/peringkat/ekspor.csv">
+    <i class="bi bi-download"></i> Unduh CSV
+  </a>
   <button class="btn btn-primary"
           hx-post="/peringkat/run" hx-target="#rank-box" hx-swap="innerHTML" hx-indicator="#spin2"
           hx-confirm="Jalankan perangkingan baru? Ini membuat batch baru; batch lama tetap tersimpan.">
