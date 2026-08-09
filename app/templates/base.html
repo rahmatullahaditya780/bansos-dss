@@ -84,7 +84,30 @@
   <main class="container py-4" id="konten">{{ self.content() }}</main>
 {% endif %}
 
+  {# Wilayah toast: satu-satunya tempat aplikasi mengabarkan hasil tindakan. `aria-live` membuat
+     pembaca layar ikut mendengar kabarnya, bukan hanya yang melihat. #}
+  <div id="toast-wilayah" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1090"
+       aria-live="polite" aria-atomic="true"></div>
+
   <script src="/static/vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="/static/vendor/htmx/htmx.min.js"></script>
+  <script>
+    // Server mengabarkan lewat header `HX-Trigger: {"toast": {"pesan": "...", "jenis": "good"}}`.
+    // Jenis menentukan ikon DAN kata, tidak pernah warna saja.
+    const IKON = { good: 'bi-check-circle-fill', warn: 'bi-exclamation-triangle-fill',
+                   crit: 'bi-exclamation-octagon-fill' };
+    document.body.addEventListener('toast', (e) => {
+      const d = e.detail || {};
+      const jenis = IKON[d.jenis] ? d.jenis : 'good';
+      const el = document.createElement('div');
+      el.className = `alert alert-catatan toast-masuk shadow-sm d-flex align-items-start gap-2 mb-2`;
+      el.setAttribute('role', 'status');
+      el.innerHTML = `<i class="bi ${IKON[jenis]}" style="color: var(--st-${jenis})"></i>`
+                   + `<span></span>`;
+      el.querySelector('span').textContent = d.pesan || '';
+      document.getElementById('toast-wilayah').appendChild(el);
+      setTimeout(() => el.remove(), 6000);
+    });
+  </script>
 </body>
 </html>

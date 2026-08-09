@@ -10,7 +10,7 @@
   <div class="row g-3">
     <div class="col-12 col-lg-6">
       <div class="card">
-        <div class="card-header">Data Warga (Demografi)</div>
+        <div class="card-header"><span class="pill pill-mute me-1">1</span> Data Warga</div>
         <div class="card-body">
           <div class="mb-2"><label class="form-label">NIK</label>
             <input name="nik" class="form-control" required minlength="8" maxlength="32"></div>
@@ -38,19 +38,37 @@
 
     <div class="col-12 col-lg-6">
       <div class="card">
-        <div class="card-header">Data Ekonomi & Kondisi Rumah</div>
+        <div class="card-header"><span class="pill pill-mute me-1">2</span> Data Ekonomi &amp; Kondisi Rumah</div>
         <div class="card-body">
-          <div class="mb-2"><label class="form-label">Pendapatan per kapita / bulan (Rp)</label>
-            <input name="pendapatan" type="number" min="0" step="1000" class="form-control" required></div>
+          <div class="mb-2">
+            <label class="form-label" for="pendapatan">Pendapatan per kapita / bulan</label>
+            <div class="input-group">
+              <span class="input-group-text">Rp</span>
+              <input id="pendapatan" name="pendapatan" type="number" min="0" step="1000"
+                     class="form-control" required aria-describedby="bantu-pendapatan"
+                     oninput="document.getElementById('pratinjau-pendapatan').textContent =
+                              this.value ? 'Rp' + Number(this.value).toLocaleString('id-ID') : ''">
+            </div>
+            <div id="bantu-pendapatan" class="form-text">
+              Total pendapatan keluarga dibagi jumlah jiwa, per bulan.
+              <span id="pratinjau-pendapatan" class="fw-semibold ink-2"></span>
+            </div>
+          </div>
           <div class="mb-2"><label class="form-label">Status Pekerjaan</label>
             <input name="status_pekerjaan" class="form-control" placeholder="mis. Buruh tani"></div>
-          <div class="row">
-            <div class="col-6 mb-2 form-check ms-2 mt-2">
-              <input class="form-check-input" type="checkbox" name="aset_produktif" id="aset">
-              <label class="form-check-label" for="aset">Punya aset produktif</label></div>
-            <div class="col-6 mb-2 form-check mt-2">
-              <input class="form-check-input" type="checkbox" name="riwayat_bantuan" id="riw">
-              <label class="form-check-label" for="riw">Pernah terima bansos</label></div>
+          <div class="row g-2 mb-2 mt-1">
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="aset_produktif" id="aset">
+                <label class="form-check-label" for="aset">Punya aset produktif</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="riwayat_bantuan" id="riw">
+                <label class="form-check-label" for="riw">Pernah terima bansos</label>
+              </div>
+            </div>
           </div>
           <div class="row">
             <div class="col-6 mb-2"><label class="form-label">Luas Rumah (m²)</label>
@@ -76,11 +94,18 @@
 
     <div class="col-12">
       <div class="card">
-        <div class="card-header">Teks Naratif (kondisi keluarga / alasan pengajuan)</div>
+        <div class="card-header"><span class="pill pill-mute me-1">3</span> Teks Naratif — kondisi keluarga / alasan pengajuan</div>
         <div class="card-body">
-          <textarea name="isi_teks" class="form-control" rows="3"
+          <textarea name="isi_teks" class="form-control" rows="3" aria-describedby="bantu-narasi"
             placeholder="mis. Kepala keluarga sakit kronis, 5 anak masih sekolah, rumah gubuk bocor..."></textarea>
           <input type="hidden" name="sumber_teks" value="petugas">
+          <div id="bantu-narasi" class="form-text">
+            <i class="bi bi-info-circle"></i>
+            Teks ini dibaca model Tier 1 (IndoBERT) untuk menilai kemendesakan, jadi isinya
+            <strong>ikut menentukan peringkat prioritas</strong> — bukan sekadar catatan.
+            Sebutkan keadaan konkret (sakit, putus sekolah, rumah rusak), bukan penilaian umum.
+            Boleh dikosongkan; urgensinya akan dianggap rendah.
+          </div>
         </div>
       </div>
     </div>

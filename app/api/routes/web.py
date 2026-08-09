@@ -5,6 +5,7 @@ login, dialihkan ke /login.
 """
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request, status
@@ -33,6 +34,16 @@ def _redirect(path: str) -> RedirectResponse:
 
 def _require(user: Optional[models.User]) -> bool:
     return user is not None and user.role == models.Role.PETUGAS
+
+
+def _toast(resp, pesan: str, jenis: str = "good"):
+    """Sisipkan kabar hasil tindakan ke tanggapan HTMX.
+
+    Dikirim lewat header `HX-Trigger`; base.html yang merender pilnya. Jenis menentukan ikon DAN
+    kata — warna tidak pernah berdiri sendiri.
+    """
+    resp.headers["HX-Trigger"] = json.dumps({"toast": {"pesan": pesan, "jenis": jenis}})
+    return resp
 
 
 def _ctx(user: Optional[models.User], **extra) -> dict:
@@ -297,6 +308,17 @@ def detail(
     p = db.get(models.Pengajuan, pengajuan_id)
     if p is None:
         return HTMLResponse("Pengajuan tidak ditemukan", status_code=status.HTTP_404_NOT_FOUND)
+    # Navigasi antar-pengajuan: memverifikasi 145 kandidat satu per satu lewat jalan memutar
+    # daftar → detail → kembali → detail berikutnya adalah gesekan yang tidak perlu.
+    sebelumnya = db.execute(
+        select(models.Pengajuan.id).where(models.Pengajuan.id < p.id)
+        .order_by(models.Pengajuan.id.desc()).limit(1)
+    ).scalar_one_or_none()
+    berikutnya = db.execute(
+        select(models.Pengajuan.id).where(models.Pengajuan.id > p.id)
+        .order_by(models.Pengajuan.id.asc()).limit(1)
+    ).scalar_one_or_none()
+
     return templates.TemplateResponse(
         request,
         "detail.html",
@@ -305,6 +327,8 @@ def detail(
             p=p,
             hasil=pipeline.susun_hasil(p),
             verifikasi=verifikasi_service.verifikasi_terakhir(db, p.id),
+            sebelumnya=sebelumnya,
+            berikutnya=berikutnya,
         ),
     )
 
@@ -340,8 +364,14 @@ def detail_verifikasi(
     baris = verifikasi_service.rekam_verifikasi(
         db, p, hasil_manual, petugas_id=user.id, catatan=catatan.strip() or None
     )
-    return templates.TemplateResponse(
-        request, "partials/_verifikasi.html", {"p": p, "verifikasi": baris}
+    sepakat = baris.hasil_sistem == baris.hasil_manual
+    return _toast(
+        templates.TemplateResponse(
+            request, "partials/_verifikasi.html", {"p": p, "verifikasi": baris}
+        ),
+        "Verifikasi terekam"
+        + (" — sepakat dengan sistem." if sepakat else " — berbeda dari putusan sistem."),
+        "good" if sepakat else "warn",
     )
 
 
@@ -360,10 +390,13 @@ def detail_analisis(
             "<div class='alert alert-danger'>Data survei belum lengkap.</div>",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    pipeline.analisis_pengajuan(db, p)
+    hasil_analisis = pipeline.analisis_pengajuan(db, p)
     db.refresh(p)
-    return templates.TemplateResponse(
-        request, "partials/_hasil.html", {"p": p, "hasil": pipeline.susun_hasil(p)}
+    return _toast(
+        templates.TemplateResponse(
+            request, "partials/_hasil.html", {"p": p, "hasil": pipeline.susun_hasil(p)}
+        ),
+        f"Analisis selesai dalam {hasil_analisis['durasi_ms']} ms.",
     )
 
 
@@ -445,7 +478,10 @@ def peringkat_run(
     if not _require(user):
         return HTMLResponse("", status_code=status.HTTP_401_UNAUTHORIZED)
     hasil = pipeline.jalankan_ranking(db)
-    return templates.TemplateResponse(request, "partials/_ranking_table.html", {"hasil": hasil})
+    return _toast(
+        templates.TemplateResponse(request, "partials/_ranking_table.html", {"hasil": hasil}),
+        f"Batch {hasil['batch_id']} selesai — {hasil['jumlah_alternatif']} alternatif dirangking.",
+    )
 
 
 # ---- Metrik pengujian (Bab 9.2/9.3) ----

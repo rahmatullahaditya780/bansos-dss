@@ -4,6 +4,14 @@
 {% block content %}
 {% call ph.kepala("Pengajuan #" ~ p.id, p.warga.nama, "/daftar", "Kembali ke daftar") %}
   {% include "partials/_status_badge.html" %}
+  <div class="btn-group btn-group-sm" role="group" aria-label="Pindah pengajuan">
+    <a class="btn btn-outline-secondary {{ 'disabled' if not sebelumnya }}"
+       href="/detail/{{ sebelumnya or p.id }}" aria-label="Pengajuan sebelumnya"
+       title="Pengajuan sebelumnya"><i class="bi bi-chevron-left"></i></a>
+    <a class="btn btn-outline-secondary {{ 'disabled' if not berikutnya }}"
+       href="/detail/{{ berikutnya or p.id }}" aria-label="Pengajuan berikutnya"
+       title="Pengajuan berikutnya"><i class="bi bi-chevron-right"></i></a>
+  </div>
 {% endcall %}
 
 <div class="row g-3">
