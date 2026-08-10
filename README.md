@@ -40,6 +40,14 @@ uvicorn app.main:app --reload
 Buka http://127.0.0.1:8000 (dashboard) atau http://127.0.0.1:8000/docs (Swagger).
 Akun demo: **petugas / petugas123**.
 
+> **Startup sengaja memakan ~10–15 detik.** Artefak Tier 1 & Tier 2 dimuat lebih dulu
+> (`panaskan_model_saat_start`, bawaan `true`), supaya bukan petugas pertama yang menanggung biaya
+> pemuatan model: tanpa pemanasan, permintaan analisis pertama terukur **10.182 ms**, sesudahnya
+> **213 ms**. Tunggu baris `Application startup complete` sebelum membuka halaman.
+> Untuk iterasi cepat, matikan lewat `PANASKAN_MODEL_SAAT_START=false` di `.env`.
+>
+> **Tidak butuh internet.** Seluruh aset antarmuka dilayani dari `app/static/vendor/`.
+
 ## Menjalankan (Docker, PostgreSQL)
 
 ```bash
