@@ -23,6 +23,19 @@ ml/artifacts/*
 data/local/
 data/synthetic/*.csv
 
+# Data publik mentah (besar; reproducible dari SUMBER.md + MANIFES.sha256 di tiap subfolder).
+# DAFTAR-PUTIH, bukan daftar-hitam: arsip pihak ketiga membawa jenis berkas yang tak terduga
+# (.do, .log, .gph, .ado, .xml, .out ...), dan daftar-hitam per ekstensi terbukti meloloskan 74
+# berkas dari arsip Alatas. Kecualikan semuanya, lalu izinkan hanya berkas dokumentasi kita.
+# `!data/public/**/` wajib ada: git tidak dapat me-restore berkas bila direktori induknya
+# dikecualikan, jadi direktorinya harus di-restore lebih dulu.
+# Catatan: teks LAPOR! memuat PII asli (nomor KKS) — datanya memang tidak boleh masuk git.
+data/public/**
+!data/public/**/
+!data/public/**/SUMBER.md
+!data/public/**/MANIFES.sha256
+!data/public/**/.gitkeep
+
 # OS / IDE
 .DS_Store
 Thumbs.db
