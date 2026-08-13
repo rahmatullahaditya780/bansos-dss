@@ -111,6 +111,50 @@ Sebaran label terverifikasi: `poor` = 2.028 miskin / 3.725 tidak (35,2% positif,
    Bandingkan `se2_138` (lahan pertanian) yang memang 0/1 dengan 2.335 pemilik, dan `se2_125`
    (motor) 0/1 dengan 3.080 pemilik — dua ini kandidat wajar untuk `aset_produktif`.
 
+## Hasil Tier 2 di data ini (14 Agustus 2026)
+
+Varian yang dipakai: **label musyawarah**, `asal_data='publik-musy'`, ablasi 6 fitur
+(tanpa `skor_urgensi`, karena sumbernya tanpa teks naratif). n = 3.788 → 3.031 latih / 757 uji,
+kebocoran warga 0.
+
+| | Validasi silang 5×5 | Holdout n=757 |
+|---|---|---|
+| **F1 kelas 'layak'** | 0,5750 ± 0,0250 | 0,6090 |
+| Akurasi | 0,6985 ± 0,0189 | 0,7133 ± 0,0322 |
+| Recall | 0,6786 | 0,7412 |
+| Presisi | — | 0,5168 |
+| ROC-AUC | — | 0,7825 |
+| Brier | — | 0,1906 |
+| Baseline tebak-mayoritas | 0,6988 | — |
+
+Artefak: `tier2-gradient-boosting-seimbang-publik-musy-tanpa-urgensi-v1`.
+
+**Temuan metodologis terpenting: untuk PERTAMA KALINYA di proyek ini pemilihan model menghasilkan
+pemenang yang dapat dibedakan secara statistik** — `dapat_dibedakan: true`, unggul 0,0572
+melampaui simpangan gabungan 0,0385. Bandingkan dengan riwayatnya:
+
+| Data | Sebaran F1 kandidat | Dapat dibedakan? |
+|---|---|---|
+| Sintetis (Fase 3) | 0,9128–0,9176, selisih 0,0005 vs simpangan 0,0201 | ❌ |
+| Publik, label `poor` (bocor) | keempatnya ±0,94 | ❌ |
+| **Publik, label musyawarah** | 0,4590–0,5750 | ✅ |
+
+Ini membenarkan keputusan menunda pemilihan model ke data nyata, dan sekaligus menunjukkan
+penyeimbangan kelas benar-benar berpengaruh di sini (GB polos 0,4590 → GB seimbang 0,5750),
+padahal pada label yang bocor perbedaannya tenggelam.
+
+**Cara membaca angkanya, dan cara mempertahankannya.** Akurasi 0,713 hanya sedikit di atas
+baseline 0,699, tetapi baseline itu menebak "tidak layak" untuk semua orang — tidak berguna bagi
+DSS. Yang relevan adalah recall 0,741 pada kelas 'layak' dengan ROC-AUC 0,783: model menemukan
+tiga dari empat rumah tangga yang dipilih musyawarah, dari fitur tabular saja. Presisi 0,517
+berarti sekitar separuh usulannya tetap perlu diverifikasi petugas — persis peran yang dirancang
+untuk sistem ini (FR-26 verifikasi manual), bukan kegagalan.
+
+Angka ini juga harus dibaca berdampingan dengan fakta bahwa **musyawarah warga sendiri hanya
+sepakat 66,3% dengan kemiskinan berbasis konsumsi** (n=3.788; silang: 1.905/536/742/605). Artinya
+"kebenaran" yang ditiru model memang bukan ukuran objektif, melainkan penilaian manusia — inti
+persoalan OI-18, kini dengan angka.
+
 ## 🚨 Jebakan keenam — `poor` adalah AMBANG DETERMINISTIK atas `CONSUMPTION`
 
 Ditemukan 13 Agustus 2026, saat melatih Tier 2 di data ini untuk pertama kalinya dan hasilnya

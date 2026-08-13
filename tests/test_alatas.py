@@ -21,9 +21,12 @@ import pytest
 from data.alatas import harmonisasi
 from data.alatas.harmonisasi import (
     AKAR_BAWAAN,
+    LABEL_MUSYAWARAH,
+    LABEL_POOR,
     HarmonisasiError,
     _ambil_label,
     _aset_produktif,
+    asal_data_untuk,
     muat_records,
     ringkasan,
 )
@@ -59,12 +62,16 @@ def _fitur_palsu(n: int = 3, **ubah) -> pd.DataFrame:
     return d
 
 
-def _label_palsu(fitur: pd.DataFrame, poor=None) -> pd.DataFrame:
+def _label_palsu(fitur: pd.DataFrame, poor=None, ranking=None, kuota=None) -> pd.DataFrame:
+    n = len(fitur)
     return pd.DataFrame(
         {
             "hhea": fitur["hhea"],
             "CONSUMPTION": fitur["CONSUMPTION"],
-            "poor": [0] * len(fitur) if poor is None else poor,
+            "poor": [0] * n if poor is None else poor,
+            # Peringkat musyawarah: <= kuota berarti masuk daftar penerima.
+            "ranking_meeting": [1] * n if ranking is None else ranking,
+            "quota_final": [5] * n if kuota is None else kuota,
         }
     )
 
@@ -206,10 +213,19 @@ def test_gelombang_tidak_dikenal_ditolak(sumber_palsu):
 
 
 # --------------------------------------------------------------------------- baris tanpa label
-def test_baris_tanpa_label_dibuang(sumber_palsu):
+def test_baris_tanpa_label_poor_dibuang(sumber_palsu):
     f = _fitur_palsu(3)
     sumber_palsu(f, label=_label_palsu(f, poor=[1, None, 0]))
-    assert len(muat_records()) == 2
+    assert len(muat_records(label=LABEL_POOR)) == 2
+
+
+def test_baris_tanpa_peringkat_musyawarah_dibuang(sumber_palsu):
+    """Desa tanpa perlakuan community/hybrid tidak punya peringkat — harus gugur, bukan 0."""
+    f = _fitur_palsu(3)
+    sumber_palsu(f, label=_label_palsu(f, ranking=[1, None, 9]))
+    recs = muat_records()
+    assert len(recs) == 2
+    assert [r["label_historis"] for r in recs] == [True, False]
 
 
 def test_berkas_hilang_memberi_pesan_yang_menuntun():
@@ -217,16 +233,57 @@ def test_berkas_hilang_memberi_pesan_yang_menuntun():
         muat_records("jalan/yang/tidak/ada")
 
 
+# --------------------------------------------------------------------------- varian label
+def test_default_adalah_musyawarah_bukan_poor():
+    """`poor` bocor terhadap `pendapatan`; yang memilihnya harus melakukannya secara sadar.
+
+    Default yang salah di sini tidak akan menggagalkan apa pun — ia hanya menghasilkan metrik
+    0,95 yang tampak hebat dan masuk skripsi. Karena itu defaultnya dikunci tes.
+    """
+    import inspect
+
+    assert inspect.signature(muat_records).parameters["label"].default == LABEL_MUSYAWARAH
+    assert asal_data_untuk(LABEL_MUSYAWARAH) == "publik-musy"
+    assert asal_data_untuk(LABEL_POOR) == "publik"
+
+
+def test_asal_data_membedakan_kedua_varian(sumber_palsu):
+    """Dua pelabelan harus terbedakan sampai ke kolom `asal_data` di CSV korpus."""
+    f = _fitur_palsu(2)
+    sumber_palsu(f, label=_label_palsu(f, poor=[1, 1], ranking=[1, 9], kuota=[5, 5]))
+    assert {r["asal_data"] for r in muat_records(label=LABEL_MUSYAWARAH)} == {"publik-musy"}
+    assert {r["asal_data"] for r in muat_records(label=LABEL_POOR)} == {"publik"}
+
+
+def test_label_musyawarah_memakai_kuota_desa(sumber_palsu):
+    f = _fitur_palsu(3)
+    sumber_palsu(f, label=_label_palsu(f, ranking=[1, 5, 6], kuota=[5, 5, 5]))
+    assert [r["label_historis"] for r in muat_records()] == [True, True, False]
+
+
+def test_label_karangan_ditolak(sumber_palsu):
+    sumber_palsu(_fitur_palsu(1))
+    with pytest.raises(HarmonisasiError, match="label tidak dikenal"):
+        muat_records(label="apa_saja")
+
+
 # --------------------------------------------------------------------------- data sungguhan
 @butuh_data
-def test_data_asli_cocok_dengan_angka_paper():
-    recs = muat_records()
-    r = ringkasan(recs)
+def test_data_asli_musyawarah_cocok_dengan_angka_terverifikasi():
+    r = ringkasan(muat_records())
+    assert r["jumlah"] == 3788, "hanya desa berlengan community/hybrid yang punya peringkat"
+    assert r["label_historis_true"] == 1141
+    assert r["label_historis_false"] == 2647
+    assert 400_000 < r["pendapatan_median"] < 410_000, "median Rp 406.289 (nominal 2008)"
+
+
+@butuh_data
+def test_data_asli_poor_cocok_dengan_angka_paper():
+    r = ringkasan(muat_records(label=LABEL_POOR))
     assert r["jumlah"] == 5753, "5.756 rumah tangga dikurangi 3 tanpa label konsumsi"
     assert r["label_historis_true"] == 2028
     assert r["label_historis_false"] == 3725
     assert r["riwayat_bantuan_true"] == 1397, "penerima BLT 2005"
-    assert 400_000 < r["pendapatan_median"] < 410_000, "median Rp 405.745 (nominal 2008)"
 
 
 @butuh_data
@@ -240,6 +297,6 @@ def test_data_asli_nik_unik_dan_jelas_bukan_nik_sungguhan():
 @butuh_data
 def test_data_asli_gelombang_2008_berbeda_dari_2005():
     """Kalau keduanya sama, berarti penyaring `ksr2type` tidak bekerja."""
-    a = sum(r["riwayat_bantuan"] for r in muat_records(gelombang_blt="2005"))
-    b = sum(r["riwayat_bantuan"] for r in muat_records(gelombang_blt="2008"))
+    a = sum(r["riwayat_bantuan"] for r in muat_records(label=LABEL_POOR, gelombang_blt="2005"))
+    b = sum(r["riwayat_bantuan"] for r in muat_records(label=LABEL_POOR, gelombang_blt="2008"))
     assert (a, b) == (1397, 1701)

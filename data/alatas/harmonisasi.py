@@ -41,9 +41,28 @@ BERKAS_FITUR = "codeddata/coding_suseti_pmt.dta"
 BERKAS_LABEL = "codeddata/mistargeting_CORRECTED.dta"
 BERKAS_BLT = "data/baseline/hh_ksr2.dta"
 
-# Penanda asal agar dapat ditelusuri di basis data & CSV korpus.
-ASAL_DATA = "publik"
 VERSI_HARMONISASI = "alatas2012-v1"
+
+# --------------------------------------------------------------------------- pilihan label
+# `poor`       : ambang konsumsi (CONSUMPTION < povline_poor). BOCOR bila `pendapatan` ikut jadi
+#                fitur, karena `pendapatan` = CONSUMPTION x 1.000 — labelnya fungsi dari fiturnya
+#                sendiri (cocok 99,97%). Disediakan hanya untuk mendemonstrasikan kebocoran itu.
+# `musyawarah` : masuk kuota termiskin menurut peringkat musyawarah warga. TIDAK diturunkan dari
+#                konsumsi, jadi `pendapatan` boleh tetap jadi fitur. Ini padanan terdekat dari
+#                `label_historis` proyek ini (keputusan manusia atas kelayakan), dan karena itu
+#                satu-satunya varian yang sebanding dengan model data lokal Fase 6.
+LABEL_POOR = "poor"
+LABEL_MUSYAWARAH = "musyawarah"
+
+# Penanda asal per varian label — dibawa kolom `asal_data` sampai ke CSV korpus dan metadata
+# artefak, sehingga dua pelabelan tidak dapat tertukar tanpa ketahuan.
+_ASAL_DATA = {LABEL_POOR: "publik", LABEL_MUSYAWARAH: "publik-musy"}
+
+
+def asal_data_untuk(label: str) -> str:
+    if label not in _ASAL_DATA:
+        raise HarmonisasiError(f"label tidak dikenal: {label!r} (pilih {list(_ASAL_DATA)})")
+    return _ASAL_DATA[label]
 
 # Biner sumber → kosakata `app/services/features.py`. Nilai dalam komentar adalah skor kebutuhan
 # yang dihasilkan `housing_need_score` (1,0 = paling butuh).
@@ -77,12 +96,16 @@ def _baca(akar: Path, relatif: str) -> pd.DataFrame:
     return pd.read_stata(path, convert_categoricals=False)
 
 
-def _ambil_label(fitur: pd.DataFrame, label: pd.DataFrame) -> pd.Series:
-    """Ambil kolom `poor`, setelah membuktikan kedua tabel benar-benar sejajar.
+def _ambil_label(fitur: pd.DataFrame, label: pd.DataFrame, jenis: str = LABEL_POOR) -> pd.Series:
+    """Ambil kolom label, setelah membuktikan kedua tabel benar-benar sejajar.
 
     `mistargeting_CORRECTED.dta` tidak membawa `hhid`, jadi satu-satunya cara menggabungkannya
     adalah lewat urutan baris. Itu boleh dilakukan HANYA bila kesejajarannya dibuktikan, bukan
     diandaikan.
+
+    `jenis='musyawarah'` menurunkan label dari peringkat musyawarah warga: masuk kuota termiskin
+    desanya (`ranking_meeting <= quota_final`). Rumah tangga yang desanya tidak mendapat perlakuan
+    community/hybrid tidak punya peringkat ini dan menghasilkan NaN — dibuang di `muat_records`.
     """
     if len(fitur) != len(label):
         raise HarmonisasiError(
@@ -95,7 +118,20 @@ def _ambil_label(fitur: pd.DataFrame, label: pd.DataFrame) -> pd.Series:
     kanan = label["CONSUMPTION"].fillna(-1).to_numpy()
     if not (abs(kiri - kanan) < 1e-6).all():
         raise HarmonisasiError("kolom `CONSUMPTION` tidak cocok baris-per-baris — urutan berbeda")
-    return label["poor"]
+
+    if jenis == LABEL_POOR:
+        return label["poor"]
+    if jenis == LABEL_MUSYAWARAH:
+        kurang = [k for k in ("ranking_meeting", "quota_final") if k not in label.columns]
+        if kurang:
+            raise HarmonisasiError(f"kolom {kurang} tidak ada — tidak dapat membentuk label musyawarah")
+        punya = label["ranking_meeting"].notna() & label["quota_final"].notna()
+        hasil = pd.Series(float("nan"), index=label.index)
+        hasil[punya] = (
+            label.loc[punya, "ranking_meeting"] <= label.loc[punya, "quota_final"]
+        ).astype(float)
+        return hasil
+    raise HarmonisasiError(f"label tidak dikenal: {jenis!r} (pilih {[LABEL_POOR, LABEL_MUSYAWARAH]})")
 
 
 def _riwayat_bantuan(akar: Path, hhid: pd.Series, gelombang: str) -> pd.Series:
@@ -130,26 +166,32 @@ def _aset_produktif(f: pd.DataFrame) -> pd.Series:
 def muat_records(
     akar: Path | str = AKAR_BAWAAN,
     *,
+    label: str = LABEL_MUSYAWARAH,
     gelombang_blt: str = "2005",
     deflator: float = 1.0,
 ) -> list[dict]:
     """Baca sumber Alatas dan kembalikan baris siap-seed (satu dict per rumah tangga).
 
+    `label` default `musyawarah` — SENGAJA, karena `poor` bocor terhadap fitur `pendapatan`
+    (lihat blok pilihan label di atas). Yang memilih `poor` harus melakukannya secara sadar.
+
     `deflator` mengalikan rupiah 2008 agar sebanding dengan tahun rujukan skripsi; biarkan 1.0
     bila memang ingin memakai rupiah nominal 2008, dan catat pilihannya.
     """
+    asal = asal_data_untuk(label)  # sekaligus memvalidasi nama labelnya
     akar = Path(akar)
     f = _baca(akar, BERKAS_FITUR)
-    poor = _ambil_label(f, _baca(akar, BERKAS_LABEL))
+    poor = _ambil_label(f, _baca(akar, BERKAS_LABEL), label)
     riwayat = _riwayat_bantuan(akar, f["hhid"], gelombang_blt)
     aset = _aset_produktif(f)
 
     records: list[dict] = []
     for i in range(len(f)):
         baris = f.iloc[i]
-        label = poor.iloc[i]
-        # Rumah tangga tanpa label kemiskinan tidak dapat dipakai melatih Tier 2 (3 baris).
-        if pd.isna(label) or pd.isna(baris["CONSUMPTION"]):
+        nilai_label = poor.iloc[i]
+        # Tanpa label, baris tidak dapat dipakai melatih Tier 2. Untuk `poor` ini hanya 3 baris;
+        # untuk `musyawarah` ini seluruh desa yang tidak mendapat perlakuan community/hybrid.
+        if pd.isna(nilai_label) or pd.isna(baris["CONSUMPTION"]):
             continue
         hhid = str(baris["hhid"])
         records.append(
@@ -169,8 +211,8 @@ def muat_records(
                 "riwayat_bantuan": bool(riwayat.iloc[i]),
                 "luas_rumah": _float_atau_none(baris["floor"]),
                 **{k: _peta_rumah(baris, k) for k in _KOLOM_RUMAH},
-                "label_historis": bool(label == 1),
-                "asal_data": ASAL_DATA,
+                "label_historis": bool(nilai_label == 1),
+                "asal_data": asal,
                 "hhid": hhid,
             }
         )
@@ -229,11 +271,14 @@ if __name__ == "__main__":  # pragma: no cover
 
     ap = argparse.ArgumentParser(description="Pratinjau harmonisasi Alatas dkk. (tanpa DB).")
     ap.add_argument("--akar", default=str(AKAR_BAWAAN))
+    ap.add_argument("--label", default=LABEL_MUSYAWARAH, choices=[LABEL_MUSYAWARAH, LABEL_POOR])
     ap.add_argument("--gelombang-blt", default="2005", choices=sorted(_GELOMBANG_BLT))
     ap.add_argument("--deflator", type=float, default=1.0)
     args = ap.parse_args()
 
-    recs = muat_records(args.akar, gelombang_blt=args.gelombang_blt, deflator=args.deflator)
+    recs = muat_records(
+        args.akar, label=args.label, gelombang_blt=args.gelombang_blt, deflator=args.deflator
+    )
     print(json.dumps(ringkasan(recs), indent=2, ensure_ascii=False))
     print("\ncontoh baris pertama:")
     print(json.dumps(recs[0], indent=2, ensure_ascii=False))
