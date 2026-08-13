@@ -279,9 +279,19 @@ def main() -> None:
         skor_urgensi=args.skor_urgensi, asal_data=args.asal_data, batas=args.batas
     )
     if not baris:
+        # Cetak `lewat` DI SINI, bukan hanya di jalur sukses di bawah: tanpa ini pesan galatnya
+        # menyembunyikan satu-satunya keterangan yang menjelaskan sebabnya. Terbukti menyesatkan
+        # saat data publik Alatas (tanpa teks naratif) diekspor — pesan lama menyuruh menjalankan
+        # seeder sintetis, padahal seluruh baris gugur karena `tanpa_skor_urgensi`.
         raise SystemExit(
-            "Tidak ada pengajuan berlabel yang dapat diekspor. "
-            "Jalankan `python -m data.synthetic.seed <n> --force` lebih dulu."
+            "Tidak ada pengajuan berlabel yang dapat diekspor.\n"
+            f"  Dilewati: {lewat}\n"
+            "  tanpa_survei / tanpa_label  → jalankan `python -m data.synthetic.seed <n> --force`\n"
+            "  tanpa_skor_urgensi          → pengajuan tidak punya teks naratif atau belum\n"
+            "                                dianalisis. Data publik tanpa teks (mis. Alatas dkk.)\n"
+            "                                memang selalu jatuh ke sini; ekspornya membutuhkan\n"
+            "                                mode tanpa-urgensi yang eksplisit, bukan nilai netral\n"
+            "                                yang diisikan diam-diam."
         )
 
     latih, uji = split_80_20(baris, test_size=args.test_size, seed=args.seed)
