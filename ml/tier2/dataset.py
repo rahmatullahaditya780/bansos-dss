@@ -27,7 +27,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ml.tier2 import FITUR, ID2LABEL, LABEL2ID
+from ml.tier2 import FITUR, FITUR_TANPA_URGENSI, ID2LABEL, LABEL2ID, nama_set_fitur
 
 UKURAN_POTONGAN_SKOR = 64  # jumlah narasi per forward pass Tier 1
 
@@ -54,9 +54,18 @@ def _skor_urgensi_tersimpan(pengajuan) -> float | None:
 
 
 def muat_dari_db(
-    *, skor_urgensi: str = "hitung", asal_data: str | None = None, batas: int | None = None
+    *,
+    skor_urgensi: str = "hitung",
+    asal_data: str | None = None,
+    batas: int | None = None,
+    tanpa_urgensi: bool = False,
 ) -> tuple[list[Baris], dict[str, int]]:
-    """Baca pengajuan berlabel dari basis data. Kembalikan (baris, statistik pelewatan)."""
+    """Baca pengajuan berlabel dari basis data. Kembalikan (baris, statistik pelewatan).
+
+    `tanpa_urgensi=True` merakit vektor ablasi enam fitur: `skor_urgensi` DIHILANGKAN dari dict
+    fitur (bukan diisi nilai netral), dan pengajuan tanpa teks naratif tidak lagi dibuang. Dipakai
+    untuk data publik yang memang tidak punya narasi.
+    """
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 
@@ -95,11 +104,11 @@ def muat_dari_db(
                 continue
             kandidat.append(p)
 
-        urgensi = _kumpulkan_urgensi(kandidat, skor_urgensi, lewat)
+        urgensi = {} if tanpa_urgensi else _kumpulkan_urgensi(kandidat, skor_urgensi, lewat)
 
         baris: list[Baris] = []
         for p in kandidat:
-            if p.id not in urgensi:
+            if not tanpa_urgensi and p.id not in urgensi:
                 continue
             s = p.data_survei
             baris.append(
@@ -118,7 +127,8 @@ def muat_dari_db(
                         jenis_dinding=s.jenis_dinding,
                         sumber_air=s.sumber_air,
                         luas_rumah=s.luas_rumah,
-                        skor_urgensi=urgensi[p.id],
+                        # None → kunci `skor_urgensi` tidak ikut dirakit sama sekali.
+                        skor_urgensi=None if tanpa_urgensi else urgensi[p.id],
                     ),
                 )
             )
@@ -167,32 +177,61 @@ def _kumpulkan_urgensi(kandidat, mode: str, lewat: dict[str, int]) -> dict[int, 
 
 
 # --------------------------------------------------------------------------- CSV
-KOLOM = ["pengajuan_id", "warga_id", "label", "label_id", "asal_data", *FITUR]
+KOLOM_META = ["pengajuan_id", "warga_id", "label", "label_id", "asal_data"]
 
 
-def tulis_csv(baris: list[Baris], path: str | Path) -> Path:
+def kolom(fitur: list[str] = FITUR) -> list[str]:
+    return [*KOLOM_META, *fitur]
+
+
+# Nama lama dipertahankan agar pemanggil yang sudah ada tidak perlu diubah.
+KOLOM = kolom(FITUR)
+
+
+def fitur_csv(path: str | Path) -> list[str]:
+    """Baca himpunan fitur dari HEADER berkas, bukan dari `ml.tier2.FITUR`.
+
+    Ini yang membuat berkas ablasi dan berkas lengkap tidak dapat tertukar: himpunan fiturnya
+    melekat pada berkasnya sendiri, dan `nama_set_fitur` menolak apa pun yang bukan salah satu
+    dari dua bentuk sah.
+    """
+    path = Path(path)
+    with path.open(encoding="utf-8", newline="") as f:
+        header = next(csv.reader(f), None)
+    if not header:
+        raise ValueError(f"Dataset kosong: {path}")
+    kurang = [k for k in KOLOM_META if k not in header]
+    if kurang:
+        raise ValueError(f"Kolom {kurang} tidak ada di {path} (ada: {header})")
+    sisa = [k for k in header if k not in KOLOM_META]
+    try:
+        nama_set_fitur(sisa)
+    except ValueError as exc:
+        raise ValueError(f"{path}: {exc}") from exc
+    return sisa
+
+
+def tulis_csv(baris: list[Baris], path: str | Path, fitur: list[str] = FITUR) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
-        w.writerow(KOLOM)
+        w.writerow(kolom(fitur))
         for b in baris:
             w.writerow(
                 [b.pengajuan_id, b.warga_id, b.label, b.label_id, b.asal_data]
-                + [b.fitur[k] for k in FITUR]
+                + [b.fitur[k] for k in fitur]
             )
     return path
 
 
 def muat_csv(path: str | Path) -> list[Baris]:
     path = Path(path)
+    fitur = fitur_csv(path)
     with path.open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
     if not rows:
         raise ValueError(f"Dataset kosong: {path}")
-    kurang = [k for k in KOLOM if k not in rows[0]]
-    if kurang:
-        raise ValueError(f"Kolom {kurang} tidak ada di {path} (ada: {list(rows[0])})")
 
     baris = []
     for r in rows:
@@ -205,7 +244,7 @@ def muat_csv(path: str | Path) -> list[Baris]:
                 pengajuan_id=int(r["pengajuan_id"]),
                 label=label,
                 asal_data=(r.get("asal_data") or "sintetis").strip(),
-                fitur={k: float(r[k]) for k in FITUR},
+                fitur={k: float(r[k]) for k in fitur},
             )
         )
     return baris
@@ -273,10 +312,20 @@ def main() -> None:
     ap.add_argument("--test-size", type=float, default=0.2)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--batas", type=int, default=None, help="ambil maksimal N pengajuan")
+    ap.add_argument(
+        "--tanpa-urgensi",
+        action="store_true",
+        help="ablasi 6 fitur: buang `skor_urgensi` dari skema. Untuk data publik tanpa teks "
+             "naratif. Artefak hasilnya SENGAJA ditolak pipeline live.",
+    )
     args = ap.parse_args()
 
+    fitur = FITUR_TANPA_URGENSI if args.tanpa_urgensi else FITUR
     baris, lewat = muat_dari_db(
-        skor_urgensi=args.skor_urgensi, asal_data=args.asal_data, batas=args.batas
+        skor_urgensi=args.skor_urgensi,
+        asal_data=args.asal_data,
+        batas=args.batas,
+        tanpa_urgensi=args.tanpa_urgensi,
     )
     if not baris:
         # Cetak `lewat` DI SINI, bukan hanya di jalur sukses di bawah: tanpa ini pesan galatnya
@@ -298,9 +347,15 @@ def main() -> None:
     bocor = periksa_kebocoran(latih, uji)
 
     outdir = Path(args.outdir)
-    tulis_csv(latih, outdir / "tier2_train.csv")
-    tulis_csv(uji, outdir / "tier2_test.csv")
+    tulis_csv(latih, outdir / "tier2_train.csv", fitur)
+    tulis_csv(uji, outdir / "tier2_test.csv", fitur)
 
+    print(f"Skema  : {nama_set_fitur(fitur)} ({len(fitur)} fitur) — {fitur}")
+    if args.tanpa_urgensi:
+        print(
+            "         ABLASI: artefak yang dilatih dari CSV ini tidak dapat melayani aplikasi;\n"
+            "         `periksa_skema()` akan menolaknya. Gunakan hanya untuk pembandingan luring."
+        )
     print(f"Dilewati: {lewat}")
     print(f"Total   : {ringkasan(baris)}")
     print(f"Latih   : {ringkasan(latih)}")

@@ -10,22 +10,29 @@ Urutan fitur ikut disimpan ke `metadata.json` artefak dan diperiksa ulang saat p
 """
 from __future__ import annotations
 
-from ml.tier2 import FITUR
+from ml.tier2 import FITUR, FITUR_TANPA_URGENSI
 
 
 class SkemaFiturError(ValueError):
     """Vektor fitur tidak dapat dirakit atau tidak cocok dengan artefak."""
 
 
-def vektor(features: dict[str, float]) -> list[float]:
-    """Ubah dict fitur (keluaran `build_features`) menjadi vektor terurut `FITUR`."""
-    kurang = [f for f in FITUR if f not in features]
+def vektor(features: dict[str, float], fitur: list[str] | None = None) -> list[float]:
+    """Ubah dict fitur (keluaran `build_features`) menjadi vektor terurut `fitur`.
+
+    `fitur` default `FITUR` (tujuh fitur, jalur produksi). Jalur ablasi luring meneruskan
+    `FITUR_TANPA_URGENSI` secara eksplisit — tidak ada penebakan otomatis di sini, karena
+    menebak himpunan fitur dari isi dict adalah cara paling mudah menghasilkan vektor yang
+    bergeser diam-diam.
+    """
+    fitur = FITUR if fitur is None else list(fitur)
+    kurang = [f for f in fitur if f not in features]
     if kurang:
         raise SkemaFiturError(
-            f"fitur wajib tidak ada: {kurang}. Vektor Tier 2 menuntut {FITUR}"
+            f"fitur wajib tidak ada: {kurang}. Vektor Tier 2 menuntut {fitur}"
         )
     nilai: list[float] = []
-    for f in FITUR:
+    for f in fitur:
         try:
             nilai.append(float(features[f]))
         except (TypeError, ValueError) as exc:
@@ -33,9 +40,11 @@ def vektor(features: dict[str, float]) -> list[float]:
     return nilai
 
 
-def matriks(daftar_features: list[dict[str, float]]) -> list[list[float]]:
+def matriks(
+    daftar_features: list[dict[str, float]], fitur: list[str] | None = None
+) -> list[list[float]]:
     """Rakit banyak vektor sekaligus (urutan baris dipertahankan)."""
-    return [vektor(f) for f in daftar_features]
+    return [vektor(f, fitur) for f in daftar_features]
 
 
 def periksa_skema(fitur_artefak: list[str]) -> None:
@@ -45,6 +54,18 @@ def periksa_skema(fitur_artefak: list[str]) -> None:
     tidak menimbulkan galat apa pun — hanya prediksi yang salah secara senyap. Pemeriksaan ini
     mengubah kegagalan senyap itu menjadi kegagalan yang berisik.
     """
+    if list(fitur_artefak) == FITUR_TANPA_URGENSI:
+        # Penolakan yang DISENGAJA, bukan kelalaian. Artefak ablasi dilatih tanpa `skor_urgensi`,
+        # sementara aplikasi selalu merakit tujuh fitur; melayaninya berarti model menerima vektor
+        # yang bergeser satu posisi — tanpa galat apa pun, hanya prediksi yang salah.
+        raise SkemaFiturError(
+            "artefak ini adalah ablasi TANPA `skor_urgensi` dan tidak boleh melayani pipeline.\n"
+            f"  artefak: {list(fitur_artefak)}\n"
+            f"  kode   : {FITUR}\n"
+            "Artefak ablasi hanya untuk pembandingan luring (data publik tanpa teks naratif).\n"
+            "Untuk melayani aplikasi, latih Tier 2 di data yang punya narasi sehingga Tier 1\n"
+            "dapat menghasilkan `skor_urgensi`."
+        )
     if list(fitur_artefak) != FITUR:
         raise SkemaFiturError(
             "urutan/isi fitur artefak berbeda dengan kode.\n"

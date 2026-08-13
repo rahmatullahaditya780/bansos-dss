@@ -24,6 +24,29 @@ FITUR = [
     "skor_urgensi",
 ]
 
+# Ablasi untuk data publik yang tidak punya teks naratif (mis. Alatas dkk. 2012), sehingga Tier 1
+# tidak dapat menghasilkan `skor_urgensi`. Ini BUKAN varian yang boleh melayani pipeline live:
+# `skema_fitur.periksa_skema()` sengaja menolak artefak berskema ini, karena aplikasi selalu
+# merakit tujuh fitur dan model enam fitur akan menerima vektor yang bergeser tanpa galat.
+# Gunanya murni pembandingan luring: memberi angka Tier 2 di atas data NYATA, menggantikan metrik
+# sintetis yang sudah terbukti tidak dapat membedakan kandidat (evaluasi pra-Fase 3).
+FITUR_TANPA_URGENSI = [f for f in FITUR if f != "skor_urgensi"]
+
+# Nama himpunan fitur → daftarnya. Dipakai CLI, header CSV, dan metadata artefak agar ketiadaan
+# fitur selalu punya nama yang sama di seluruh jalur.
+SET_FITUR = {"lengkap": FITUR, "tanpa_urgensi": FITUR_TANPA_URGENSI}
+
+
+def nama_set_fitur(fitur: list[str]) -> str:
+    """Kebalikan `SET_FITUR`: kenali himpunan fitur, atau tolak yang tidak dikenal."""
+    for nama, daftar in SET_FITUR.items():
+        if list(fitur) == daftar:
+            return nama
+    raise ValueError(
+        f"himpunan fitur tidak dikenal: {list(fitur)}. "
+        f"Yang sah: { {k: v for k, v in SET_FITUR.items()} }"
+    )
+
 LABELS = ["tidak_layak", "layak"]
 LABEL2ID = {label: i for i, label in enumerate(LABELS)}
 ID2LABEL = {i: label for i, label in enumerate(LABELS)}

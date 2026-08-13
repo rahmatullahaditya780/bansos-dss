@@ -111,6 +111,40 @@ Sebaran label terverifikasi: `poor` = 2.028 miskin / 3.725 tidak (35,2% positif,
    Bandingkan `se2_138` (lahan pertanian) yang memang 0/1 dengan 2.335 pemilik, dan `se2_125`
    (motor) 0/1 dengan 3.080 pemilik — dua ini kandidat wajar untuk `aset_produktif`.
 
+## 🚨 Jebakan keenam — `poor` adalah AMBANG DETERMINISTIK atas `CONSUMPTION`
+
+Ditemukan 13 Agustus 2026, saat melatih Tier 2 di data ini untuk pertama kalinya dan hasilnya
+terlihat terlalu bagus.
+
+**`poor == (CONSUMPTION < povline_poor)` pada 99,97% dari 5.753 baris.** Ada enam garis kemiskinan
+berbeda (per provinsi × kota/desa: 260,6 · 303,2 · 304,5 · 332,3 · 349,0 · 352,9). Sementara itu
+`data_survei.pendapatan` diisi `CONSUMPTION × 1.000` — jadi **labelnya adalah fungsi dari salah
+satu fiturnya sendiri.**
+
+Akibatnya terukur:
+
+| Himpunan fitur | F1 | Akurasi |
+|---|---|---|
+| 6 fitur, **dengan** `pendapatan` | 0,9431 ± 0,0089 | 0,9596 |
+| 5 fitur, **tanpa** `pendapatan` | **0,5403 ± 0,0153** | 0,7164 |
+| tebak mayoritas | — | 0,6475 |
+
+Angka 0,95 itu bukan kinerja, melainkan model yang memulihkan stratum wilayah dari fitur lain lalu
+menerapkan ambang. **Jangan pernah melaporkannya.** Ini kelas kesalahan yang sama dengan akurasi
+1,0000 di korpus augmentasi Fase 2, hanya menyamar dalam bentuk baru — dan sekali lagi yang
+menyingkapnya bukan tes hijau, melainkan mencurigai angka yang kelewat bagus.
+
+Dua jalan keluar yang sah, dan keduanya perlu keputusan sadar:
+
+1. **Buang `pendapatan` dari fitur** → tugasnya menjadi PMT yang sesungguhnya: menduga kemiskinan
+   dari aset, kondisi rumah, dan demografi. Persis yang dikerjakan paper aslinya. F1 0,54 dengan
+   akurasi 0,716 di atas baseline 0,648 adalah **sinyal nyata yang sederhana**, dan sejalan dengan
+   temuan pustaka bahwa PMT memang jauh dari sempurna.
+2. **Ganti labelnya** ke `ranking_meeting` (penilaian musyawarah warga), yang tidak diturunkan dari
+   konsumsi. Ini varian yang menjawab OI-18 — tetapi ingat batasan n=867 untuk adu-langsung.
+
+Yang TIDAK sah: memakai konfigurasi 6 fitur apa adanya dan menuliskan 0,95 ke skripsi.
+
 ## Jawaban atas tiga pertanyaan terbuka (ditelusuri 13 Agustus 2026)
 
 `Codebooks.zip` **tidak ikut terekstrak** — yang ada hanya `questionnaires.zip` (= `Surveys.zip`)

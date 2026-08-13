@@ -12,8 +12,15 @@ import pytest
 
 from app.services import tier2_ml
 from app.services.features import build_features
-from ml.tier2 import FITUR, NAMA_BERKAS_MODEL
-from ml.tier2.dataset import Baris, periksa_kebocoran, split_80_20
+from ml.tier2 import FITUR, FITUR_TANPA_URGENSI, NAMA_BERKAS_MODEL, nama_set_fitur
+from ml.tier2.dataset import (
+    Baris,
+    fitur_csv,
+    muat_csv,
+    periksa_kebocoran,
+    split_80_20,
+    tulis_csv,
+)
 from ml.tier2.infer import VERSI_FALLBACK, EligibilityClassifier, reset_classifier
 from ml.tier2.skema_fitur import SkemaFiturError, periksa_skema, vektor
 from ml.tier2.train import pilih_pemenang
@@ -222,3 +229,78 @@ def test_metadata_mencatat_batas_klaim():
     assert meta["asal_data"] in {"sintetis", "publik", "lokal"}
     assert isinstance(meta["pemilihan_model"]["dapat_dibedakan"], bool)
     assert meta["pemilihan_model"]["alasan"]
+
+
+# --------------------------------------------------------------------------- ablasi tanpa urgensi
+# Jalur untuk data publik yang tidak punya teks naratif (mis. Alatas dkk. 2012), sehingga Tier 1
+# tidak dapat memberi `skor_urgensi`. Yang dijaga di sini adalah SATU sifat: ketiadaan fitur itu
+# harus mustahil lolos diam-diam — tidak lewat nilai netral, tidak lewat CSV yang tertukar, dan
+# tidak lewat artefak yang nyelonong melayani aplikasi.
+
+
+def test_build_features_tanpa_urgensi_menghilangkan_kuncinya():
+    """None berarti fiturnya TIDAK ADA — bukan diisi 0,0 atau 0,5."""
+    f = build_features(
+        pendapatan=400_000, jumlah_tanggungan=4, usia=45, aset_produktif=False,
+        riwayat_bantuan=False, jenis_lantai="tanah", jenis_dinding="bambu",
+        sumber_air="sungai", luas_rumah=20, skor_urgensi=None,
+    )
+    assert "skor_urgensi" not in f
+    assert set(f) == set(FITUR_TANPA_URGENSI)
+
+
+def test_vektor_lengkap_menolak_dict_tanpa_urgensi():
+    """Kalau ini lolos, ablasi bisa mencemari jalur produksi tanpa suara."""
+    f = _fitur()
+    del f["skor_urgensi"]
+    with pytest.raises(SkemaFiturError, match="skor_urgensi"):
+        vektor(f)
+
+
+def test_vektor_ablasi_menerima_enam_fitur():
+    f = _fitur()
+    del f["skor_urgensi"]
+    assert len(vektor(f, FITUR_TANPA_URGENSI)) == 6
+
+
+def test_periksa_skema_menolak_artefak_ablasi_dengan_alasan():
+    """Model 6 fitur menerima vektor 7 fitur tanpa galat — hanya prediksinya yang salah."""
+    with pytest.raises(SkemaFiturError, match="tidak boleh melayani pipeline"):
+        periksa_skema(FITUR_TANPA_URGENSI)
+
+
+def test_nama_set_fitur_mengenali_keduanya():
+    assert nama_set_fitur(FITUR) == "lengkap"
+    assert nama_set_fitur(FITUR_TANPA_URGENSI) == "tanpa_urgensi"
+
+
+def test_nama_set_fitur_menolak_himpunan_karangan():
+    with pytest.raises(ValueError, match="tidak dikenal"):
+        nama_set_fitur(["pendapatan", "usia"])
+
+
+def _tulis_baca(tmp_path, fitur):
+    baris = _baris(1, "layak")
+    for b in baris:
+        b.fitur = {k: v for k, v in b.fitur.items() if k in fitur}
+    path = tmp_path / "tier2_train.csv"
+    tulis_csv(baris, path, fitur)
+    return path
+
+
+def test_csv_membawa_himpunan_fiturnya_sendiri(tmp_path):
+    """Header berkas, bukan `ml.tier2.FITUR`, yang menentukan skema — supaya tak bisa tertukar."""
+    assert fitur_csv(_tulis_baca(tmp_path / "a", FITUR)) == FITUR
+    assert fitur_csv(_tulis_baca(tmp_path / "b", FITUR_TANPA_URGENSI)) == FITUR_TANPA_URGENSI
+
+
+def test_muat_csv_ablasi_tidak_mengarang_skor_urgensi(tmp_path):
+    baris = muat_csv(_tulis_baca(tmp_path, FITUR_TANPA_URGENSI))
+    assert "skor_urgensi" not in baris[0].fitur
+
+
+def test_csv_dengan_kolom_fitur_karangan_ditolak(tmp_path):
+    path = tmp_path / "aneh.csv"
+    path.write_text("pengajuan_id,warga_id,label,label_id,asal_data,pendapatan\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="tidak dikenal"):
+        fitur_csv(path)

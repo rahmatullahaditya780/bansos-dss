@@ -31,8 +31,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from ml.tier2 import FITUR, KELAS_POSITIF, LABEL2ID, LABELS, NAMA_BERKAS_MODEL
-from ml.tier2.dataset import muat_csv, ringkasan
+from ml.tier2 import KELAS_POSITIF, LABEL2ID, LABELS, NAMA_BERKAS_MODEL, nama_set_fitur
+from ml.tier2.dataset import fitur_csv, muat_csv, ringkasan
 from ml.tier2.evaluate import cetak_laporan, hitung_metrik
 from ml.tier2.skema_fitur import matriks
 
@@ -181,15 +181,28 @@ def train(
     import numpy as np
     import sklearn
 
+    # Himpunan fitur diambil dari HEADER CSV, bukan dari `ml.tier2.FITUR`. Dengan begitu berkas
+    # ablasi (6 fitur) dan berkas lengkap (7 fitur) tidak dapat tertukar, dan ketidakcocokan
+    # antara berkas latih & uji ketahuan di sini — bukan menjadi vektor bergeser yang senyap.
+    fitur = fitur_csv(train_csv)
+    fitur_uji = fitur_csv(test_csv)
+    if fitur != fitur_uji:
+        raise SystemExit(
+            f"Skema latih & uji berbeda.\n  latih: {fitur}\n  uji  : {fitur_uji}\n"
+            "Ekspor ulang keduanya dengan mode yang sama."
+        )
+    set_fitur = nama_set_fitur(fitur)
+
     baris_latih = muat_csv(train_csv)
     baris_uji = muat_csv(test_csv)
+    print(f"Skema: {set_fitur} ({len(fitur)} fitur)")
     print(f"Latih: {ringkasan(baris_latih)}")
     print(f"Uji  : {ringkasan(baris_uji)}")
 
-    X = np.array(matriks([b.fitur for b in baris_latih]))
+    X = np.array(matriks([b.fitur for b in baris_latih], fitur))
     y = np.array([b.label_id for b in baris_latih])
     grup = np.array([b.warga_id for b in baris_latih])
-    X_uji = np.array(matriks([b.fitur for b in baris_uji]))
+    X_uji = np.array(matriks([b.fitur for b in baris_uji], fitur))
     y_uji = np.array([b.label_id for b in baris_uji])
 
     mulai = time.time()
@@ -220,7 +233,11 @@ def train(
 
     cetak_laporan(metrik, f"Holdout 80:20 — {nama_pemenang}")
 
-    versi = versi_model or f"tier2-{nama_pemenang.replace('_', '-')}-{asal_data}-v1"
+    # Penanda ablasi masuk ke NAMA VERSI, bukan cuma ke metadata: penanda versi adalah satu-satunya
+    # hal yang pernah menyingkap artefak salah-pakai di proyek ini (tiga kali), dan ia ikut
+    # tercetak di UI serta tersimpan di baris basis data.
+    sufiks = "" if set_fitur == "lengkap" else f"-{set_fitur.replace('_', '-')}"
+    versi = versi_model or f"tier2-{nama_pemenang.replace('_', '-')}-{asal_data}{sufiks}-v1"
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, out / NAMA_BERKAS_MODEL)
@@ -234,7 +251,16 @@ def train(
         "asal_data": asal_data,
         "algoritma": nama_pemenang,
         "catatan_algoritma": juara.catatan,
-        "fitur": FITUR,
+        "fitur": fitur,
+        "set_fitur": set_fitur,
+        "dapat_melayani_pipeline": set_fitur == "lengkap",
+        "catatan_skema": (
+            None
+            if set_fitur == "lengkap"
+            else "Ablasi tanpa `skor_urgensi` — sumber datanya tidak punya teks naratif sehingga "
+                 "Tier 1 tidak dapat memberi skor. Artefak ini SENGAJA ditolak `periksa_skema()` "
+                 "dan hanya sah untuk pembandingan luring, bukan untuk melayani aplikasi."
+        ),
         "kelas": LABELS,
         "hyperparameter": {
             k: v for k, v in model.get_params().items() if not k.startswith("_")

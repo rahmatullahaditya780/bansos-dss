@@ -53,10 +53,16 @@ def build_features(
     jenis_dinding: Optional[str],
     sumber_air: Optional[str],
     luas_rumah: Optional[float],
-    skor_urgensi: float,
+    skor_urgensi: Optional[float],
 ) -> dict[str, float]:
-    """Rakit vektor fitur numerik untuk Tier 2 & kriteria Tier 3."""
-    return {
+    """Rakit vektor fitur numerik untuk Tier 2 & kriteria Tier 3.
+
+    `skor_urgensi=None` MENGHILANGKAN kuncinya dari hasil, bukan menggantinya dengan nilai netral.
+    Dipakai jalur ablasi 6 fitur untuk data publik yang tidak punya teks naratif. Kunci yang hilang
+    membuat `skema_fitur.vektor()` gagal berisik bila seseorang tetap meminta vektor lengkap —
+    sedangkan nilai netral akan lolos diam-diam dan mencemari model.
+    """
+    fitur = {
         "pendapatan": float(pendapatan),
         "jumlah_tanggungan": float(jumlah_tanggungan),
         "usia": float(usia),
@@ -65,5 +71,7 @@ def build_features(
         "housing_need": housing_need_score(
             jenis_lantai, jenis_dinding, sumber_air, luas_rumah, jumlah_tanggungan
         ),
-        "skor_urgensi": float(skor_urgensi),
     }
+    if skor_urgensi is not None:
+        fitur["skor_urgensi"] = float(skor_urgensi)
+    return fitur
