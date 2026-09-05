@@ -19,9 +19,21 @@ Tier 3 tidak punya label kebenaran sama sekali, sehingga **akurasi tidak akan pe
 untuknya**: yang divalidasi adalah kebenaran aritmetik (perhitungan manual) dan sifat metode
 (sensitivitas bobot, atribusi) — keduanya sudah tuntas.
 
+**Pemutakhiran Agustus 2026 — data publik nyata untuk Tier 2.** Batas klaim di atas berkurang satu
+tingkat untuk Tier 2: ia kini punya angka dari data survei sungguhan, bukan sintetis —
+**Alatas dkk. (2012)**, 5.756 rumah tangga, label peringkat musyawarah warga. F1 kelas 'layak'
+0,6090 (holdout n=757), ROC-AUC 0,7825, dan **untuk pertama kalinya pemilihan model menghasilkan
+pemenang yang dapat dibedakan secara statistik**. Angka, batasnya, dan resep reproduksinya:
+[`progres/fase-1-data-pelabelan/hasil-publik-musy/`](progres/fase-1-data-pelabelan/hasil-publik-musy/).
+Artefaknya **ablasi 6 fitur** (sumbernya tanpa teks naratif) sehingga `periksa_skema()` sengaja
+menolaknya melayani aplikasi — yang dilayani tetap artefak sintetis. Tier 1 belum punya padanan
+seperti ini; metriknya masih dari korpus augmentasi.
+
 Rincian per fase: [`progres/`](progres/) · tinjauan lintas-fase:
 [`evaluasi-pra-fase-3.md`](progres/evaluasi-pra-fase-3.md) ·
-[`evaluasi-pra-fase-4.md`](progres/evaluasi-pra-fase-4.md).
+[`evaluasi-pra-fase-4.md`](progres/evaluasi-pra-fase-4.md) ·
+[`evaluasi-pra-fase-5.md`](progres/evaluasi-pra-fase-5.md) · catatan kronologis:
+[`REVISI.md`](progres/REVISI.md).
 
 ## Menjalankan (dev lokal, tanpa Docker)
 
@@ -112,6 +124,30 @@ Fine-tuning produksi dijalankan di **Colab GPU** —
 Tanpa artefak, sistem tetap berjalan memakai **heuristik cadangan** dan menandai hasilnya
 `versi_model = heuristik-fallback-v0` — baris tersebut tidak sah dipakai untuk klaim evaluasi.
 Cek status: `python -c "from app.services.tier1_nlp import info_model; print(info_model())"`.
+
+## Data publik Tier 2 (Alatas dkk. 2012)
+
+Sumber, jebakan, dan batas pemakaiannya: [`data/public/alatas2012/SUMBER.md`](data/public/alatas2012/SUMBER.md).
+Datanya (169 MB) tidak di-commit — unduh sendiri dari Dataverse, lalu:
+
+```powershell
+$env:DATABASE_URL = "sqlite:///./bansos_publik.db"   # DB terpisah; jangan campur dgn DB demo
+$env:PYTHONIOENCODING = "utf-8"                      # tanpa ini seeder mati di konsol Windows
+python -m alembic upgrade head
+python -m data.alatas.seed                                       # 3.788 baris, asal_data='publik-musy'
+python -m ml.tier2.dataset --outdir data/corpus/publik-musy --asal-data publik-musy --tanpa-urgensi
+python -m ml.tier2.train --train data/corpus/publik-musy/tier2_train.csv `
+                         --test  data/corpus/publik-musy/tier2_test.csv `
+                         --outdir ml/artifacts/tier2-publik-musy --asal-data publik-musy
+```
+
+`--tanpa-urgensi` **wajib**: sumbernya tanpa teks naratif, jadi ini ablasi 6 fitur. Ketiadaan fitur
+ketujuh dinyatakan sampai ke nama versi artefak, dan `periksa_skema()` menolak artefak itu melayani
+pipeline — bukan karena rusak, melainkan karena aplikasi selalu merakit tujuh fitur dan model enam
+fitur akan menerima vektor bergeser satu posisi **tanpa galat apa pun**.
+
+Varian label `--label poor` ada tetapi **bocor** (labelnya ambang atas `CONSUMPTION`, yang juga
+mengisi fitur `pendapatan`) dan hanya untuk demonstrasi. Angkanya, 0,9431, tidak sah dilaporkan.
 
 ## Tier 3 (Fuzzy TOPSIS)
 

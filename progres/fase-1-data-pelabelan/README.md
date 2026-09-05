@@ -7,9 +7,9 @@ Menyiapkan data untuk melatih pipeline (dataset publik) dan untuk klaim final (d
 beserta prosedur pelabelan urgensi yang konsisten.
 
 ## Deliverable / Checklist
-- [ ] Unduh & siapkan **dataset publik**: SUSENAS/Kaggle kemiskinan (terstruktur) + IndoNLU / laporan masyarakat (teks)
-- [ ] **Harmonisasi skema** kolom publik → `data_survei` TRD (petakan fitur)
-- [ ] Urus **izin resmi** akses data DTKS/kependudukan kelurahan (OI-09) — paralel, tidak memblokir
+- [x] Unduh & siapkan **dataset publik** → **Alatas dkk. (2012)**, Harvard Dataverse, CC0, 5.756 RT ([`SUMBER.md`](../../data/public/alatas2012/SUMBER.md)) + korpus LAPOR! sebagai pembanding gaya. *Catatan: keduanya tabular/teks pendek — belum ada sumber publik untuk teks naratif Tier 1.*
+- [x] **Harmonisasi skema** kolom publik → `data_survei` (`data/alatas/harmonisasi.py` + `seed.py`, 24 tes penjaga); hasil Tier 2 di [`hasil-publik-musy/`](hasil-publik-musy/)
+- [ ] Urus **izin resmi** akses data DTKS/kependudukan kelurahan (OI-09) — **surat pertama ditolak sebagian (4 Sep 2026)**: data diri riwayat penerima dinilai sensitif. Permintaan disusun ulang tiga lapisan → [`permintaan-data-kelurahan-revisi.md`](permintaan-data-kelurahan-revisi.md). **Kini memblokir.**
 - [x] Susun **rubrik pelabelan urgensi biner** (OI-11) → [`rubrik-pelabelan-urgensi.md`](rubrik-pelabelan-urgensi.md) / [PDF](rubrik-pelabelan-urgensi.pdf)
 - [x] Susun **protokol validasi label historis** (OI-10) → [`protokol-validasi-label-historis.md`](protokol-validasi-label-historis.md) / [PDF](protokol-validasi-label-historis.pdf)
 - [ ] Rekrut pelabel ke-2; jalankan Tahap 0 (kalibrasi) & Tahap 1 (pilot 50 teks); ukur Cohen's kappa (ambang ≥ 0,61)
@@ -26,7 +26,9 @@ terdokumentasi, dan skor kappa antar-pelabel terukur.
 
 | Berkas | Isi |
 |---|---|
-| `ketentuan-data-dtks-kelurahan.pdf` | Catatan persiapan permintaan data ke kelurahan (OI-09) |
+| `ketentuan-data-dtks-kelurahan.pdf` | Catatan persiapan permintaan data ke kelurahan (OI-09) — **disusun sebelum penolakan 4 Sep; lihat berkas berikut** |
+| `permintaan-data-kelurahan-revisi.md` | **Evaluasi ulang permintaan data** setelah penolakan 4 Sep 2026 (tiga lapisan) |
+| `hasil-publik-musy/` | Metrik & resep reproduksi Tier 2 di data publik, label musyawarah warga |
 | `rubrik-pelabelan-urgensi.md` / `.pdf` | **Rubrik pelabelan urgensi** (OI-11) — panduan kerja pelabel |
 | `protokol-validasi-label-historis.md` / `.pdf` | **Protokol validasi label historis** (OI-10) — panduan sesi bersama petugas |
 | `lembar-kerja-kalibrasi-A/B.xlsx` | Lembar Tahap 0 berisi 25 kalimat kalibrasi (kuncinya di rubrik Bagian 6) |

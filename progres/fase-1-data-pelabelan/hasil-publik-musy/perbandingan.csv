@@ -1,0 +1,5 @@
+nama,catatan,n_pengukuran,akurasi_rerata,akurasi_simpangan,presisi_rerata,presisi_simpangan,recall_rerata,recall_simpangan,f1_rerata,f1_simpangan,roc_auc_rerata,roc_auc_simpangan
+gradient_boosting_seimbang,sample_weight='balanced' (GradientBoosting tidak punya class_weight),25,0.6985,0.0189,0.4996,0.0242,0.6786,0.0402,0.575,0.025,0.7594,0.0188
+random_forest_seimbang,class_weight='balanced',25,0.719,0.0194,0.5363,0.0333,0.5019,0.0376,0.5178,0.0293,0.7402,0.0211
+random_forest,,25,0.7299,0.0216,0.5739,0.0432,0.4079,0.0325,0.476,0.0305,0.7424,0.0203
+gradient_boosting,,25,0.7341,0.0222,0.5953,0.0453,0.375,0.0326,0.459,0.0304,0.7619,0.0198

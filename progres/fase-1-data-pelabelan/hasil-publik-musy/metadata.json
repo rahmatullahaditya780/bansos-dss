@@ -1,0 +1,145 @@
+{
+  "versi_model": "tier2-gradient-boosting-seimbang-publik-musy-tanpa-urgensi-v1",
+  "tier": 2,
+  "tugas": "klasifikasi biner kelayakan (tidak_layak/layak)",
+  "keluaran": "probabilitas kelas 'layak' (0..1) + label pada ambang 0,5",
+  "asal_data": "publik-musy",
+  "algoritma": "gradient_boosting_seimbang",
+  "catatan_algoritma": "sample_weight='balanced' (GradientBoosting tidak punya class_weight)",
+  "fitur": [
+    "pendapatan",
+    "jumlah_tanggungan",
+    "usia",
+    "aset_produktif",
+    "riwayat_bantuan",
+    "housing_need"
+  ],
+  "set_fitur": "tanpa_urgensi",
+  "dapat_melayani_pipeline": false,
+  "catatan_skema": "Ablasi tanpa `skor_urgensi` — sumber datanya tidak punya teks naratif sehingga Tier 1 tidak dapat memberi skor. Artefak ini SENGAJA ditolak `periksa_skema()` dan hanya sah untuk pembandingan luring, bukan untuk melayani aplikasi.",
+  "kelas": [
+    "tidak_layak",
+    "layak"
+  ],
+  "hyperparameter": {
+    "ccp_alpha": 0.0,
+    "criterion": "friedman_mse",
+    "init": null,
+    "learning_rate": 0.1,
+    "loss": "log_loss",
+    "max_depth": 3,
+    "max_features": null,
+    "max_leaf_nodes": null,
+    "min_impurity_decrease": 0.0,
+    "min_samples_leaf": 1,
+    "min_samples_split": 2,
+    "min_weight_fraction_leaf": 0.0,
+    "n_estimators": 100,
+    "n_iter_no_change": null,
+    "random_state": 42,
+    "subsample": 1.0,
+    "tol": 0.0001,
+    "validation_fraction": 0.1,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "pemilihan_model": {
+    "prosedur": "repeated stratified group k-fold (5×5), dikelompokkan per warga",
+    "kriteria": "F1 kelas 'layak'; penentu kedua = recall kelas 'layak' (keputusan teknis #8)",
+    "alasan": "F1 kelas 'layak' tertinggi; unggul 0.0572 melampaui simpangan gabungan 0.0385",
+    "dapat_dibedakan": true,
+    "perbandingan": [
+      {
+        "nama": "random_forest",
+        "catatan": "",
+        "n_pengukuran": 25,
+        "akurasi_rerata": 0.7299,
+        "akurasi_simpangan": 0.0216,
+        "presisi_rerata": 0.5739,
+        "presisi_simpangan": 0.0432,
+        "recall_rerata": 0.4079,
+        "recall_simpangan": 0.0325,
+        "f1_rerata": 0.476,
+        "f1_simpangan": 0.0305,
+        "roc_auc_rerata": 0.7424,
+        "roc_auc_simpangan": 0.0203
+      },
+      {
+        "nama": "random_forest_seimbang",
+        "catatan": "class_weight='balanced'",
+        "n_pengukuran": 25,
+        "akurasi_rerata": 0.719,
+        "akurasi_simpangan": 0.0194,
+        "presisi_rerata": 0.5363,
+        "presisi_simpangan": 0.0333,
+        "recall_rerata": 0.5019,
+        "recall_simpangan": 0.0376,
+        "f1_rerata": 0.5178,
+        "f1_simpangan": 0.0293,
+        "roc_auc_rerata": 0.7402,
+        "roc_auc_simpangan": 0.0211
+      },
+      {
+        "nama": "gradient_boosting",
+        "catatan": "",
+        "n_pengukuran": 25,
+        "akurasi_rerata": 0.7341,
+        "akurasi_simpangan": 0.0222,
+        "presisi_rerata": 0.5953,
+        "presisi_simpangan": 0.0453,
+        "recall_rerata": 0.375,
+        "recall_simpangan": 0.0326,
+        "f1_rerata": 0.459,
+        "f1_simpangan": 0.0304,
+        "roc_auc_rerata": 0.7619,
+        "roc_auc_simpangan": 0.0198
+      },
+      {
+        "nama": "gradient_boosting_seimbang",
+        "catatan": "sample_weight='balanced' (GradientBoosting tidak punya class_weight)",
+        "n_pengukuran": 25,
+        "akurasi_rerata": 0.6985,
+        "akurasi_simpangan": 0.0189,
+        "presisi_rerata": 0.4996,
+        "presisi_simpangan": 0.0242,
+        "recall_rerata": 0.6786,
+        "recall_simpangan": 0.0402,
+        "f1_rerata": 0.575,
+        "f1_simpangan": 0.025,
+        "roc_auc_rerata": 0.7594,
+        "roc_auc_simpangan": 0.0188
+      }
+    ]
+  },
+  "data": {
+    "train_csv": "data/corpus/publik-musy/tier2_train.csv",
+    "test_csv": "data/corpus/publik-musy/tier2_test.csv",
+    "latih": {
+      "jumlah": 3031,
+      "warga_unik": 3031,
+      "per_label": {
+        "tidak_layak": 2118,
+        "layak": 913
+      },
+      "per_asal_data": {
+        "publik-musy": 3031
+      }
+    },
+    "uji": {
+      "jumlah": 757,
+      "warga_unik": 757,
+      "per_label": {
+        "layak": 228,
+        "tidak_layak": 529
+      },
+      "per_asal_data": {
+        "publik-musy": 757
+      }
+    },
+    "split": "80:20 stratified, seluruh pengajuan satu warga tidak terpecah"
+  },
+  "durasi_latih_detik": 108.6,
+  "scikit_learn": "1.7.2",
+  "python": "3.10.0",
+  "dilatih_pada": "2026-09-05T12:18:26+00:00"
+}

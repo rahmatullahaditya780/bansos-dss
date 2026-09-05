@@ -8,6 +8,89 @@ perbaikan bug penting, penggantian pustaka/versi, dan hasil pengujian yang mengu
 
 ---
 
+## 2026-09-05 — P0: kerja 13–14 Agustus diamankan & angka Tier 2 publik dibuat reprodusibel
+
+Tiga risiko dihapus dalam satu sesi, tanpa menambah fitur apa pun.
+
+**1. Empat commit yang hanya ada di satu laptop.** Branch `fase-1-data-publik-alatas` (13–14
+Agustus) belum di-merge dan belum di-push selama 22 hari. Di-*fast-forward* ke `master` lalu
+di-push (`f1d83d8..b0280a5`).
+
+**2. Angka terbaik proyek ini tidak punya wujud.** Pelatihan 14 Agustus dijalankan di direktori
+sementara, jadi artefak `tier2-gradient-boosting-seimbang-publik-musy-tanpa-urgensi-v1` **tidak ada
+di disk mana pun** — F1 0,6090 dan ROC-AUC 0,7825 hanya tersisa di pesan commit `b0280a5`. Seluruh
+jalur dijalankan ulang (seed → ekspor → latih) ke basis data terpisah `bansos_publik.db`, dan
+hasilnya **identik angka demi angka**: 3.788 → 3.031/757, kebocoran warga 0, F1 silang
+0,5750 ± 0,0250, holdout F1 0,6090, akurasi 0,7133, ROC-AUC 0,7825, Brier 0,1906, `dapat_dibedakan:
+true` dengan keunggulan 0,0572 > simpangan gabungan 0,0385. Metrik kecilnya kini **dilacak git** di
+`progres/fase-1-data-pelabelan/hasil-publik-musy/` berikut resep reproduksinya; model binernya tetap
+di `ml/artifacts/tier2-publik-musy/` (tak di-commit).
+
+**Cacat yang tersingkap karena resepnya benar-benar dijalankan di luar pytest:**
+`python -m data.alatas.seed` **mati sebelum menyentuh basis data** di konsol Windows —
+`UnicodeEncodeError` pada tanda `→` di baris ringkasan yang dicetaknya, karena konsol bawaan memakai
+cp1252. Selama ini seeder hanya pernah dijalankan lewat pytest yang menangkap keluaran, sehingga
+tidak pernah terlihat. `PYTHONIOENCODING=utf-8` dicatat sebagai syarat di resep. Pola yang sama
+dengan pelajaran Fase 5: yang menyingkapnya bukan tes hijau, melainkan menjalankan perkakasnya
+sungguhan.
+
+**3. Dokumentasi tertinggal tiga minggu.** README, REVISI.md, tabel status, dan checklist Fase 1
+tidak menyebut kerja 13–14 Agustus sama sekali; `progres/README.md` juga masih menunjuk berkas
+rencana yang sudah tidak ada. Semuanya diperbarui di sesi ini.
+
+**Perubahan keadaan di luar kode:** surat permohonan data ke kelurahan (masuk 4 September) **ditolak
+sebagian** — pihak kelurahan tidak bersedia menyerahkan data diri riwayat penerima bantuan karena
+bersifat sensitif. Evaluasi ulang permintaan data ditulis di
+[`permintaan-data-kelurahan-revisi.md`](fase-1-data-pelabelan/permintaan-data-kelurahan-revisi.md):
+penolakannya benar menurut UU 27/2022, dan sistem ini **tidak pernah membutuhkan identitas siapa
+pun** — jadi permintaannya dipecah tiga lapisan (nol data pribadi / tabel anonim / data primer
+tanpa izin kelurahan) alih-alih diajukan ulang sebagai satu paket.
+
+## 2026-08-13 s/d 08-14 — Fase 1: data publik nyata & angka Tier 2 pertama yang jujur
+
+Empat commit di branch `fase-1-data-publik-alatas`. Tes naik **126 → 165**. Butir Fase 1 "unduh &
+siapkan dataset publik" akhirnya punya isi; sampai saat itu seluruh korpus proyek bertanda
+`asal_data=augmentasi` atau `sintetis`.
+
+**Dataset.** Alatas, Banerjee, Hanna, Olken & Tobias, *Targeting the Poor* (AER 2012) — Harvard
+Dataverse `doi:10.7910/DVN/M7SKQZ`, CC0, 5.756 rumah tangga di 640 desa, survei 2008, mencakup
+**Sulawesi Selatan** (provinsi Bontoramba). Dipilih karena memuat **dua label kebenaran sekaligus**
+— konsumsi per kapita dan peringkat musyawarah warga — sehingga sirkularitas OI-18 dapat *diukur*,
+bukan sekadar ditulis sebagai keterbatasan. Datanya (169 MB) tidak di-commit; yang di-commit
+provenans + `MANIFES.sha256` 360 berkas. Ditambah korpus LAPOR! (Mendeley, 117 baris) sebagai
+pembanding gaya penulisan, bukan data latih.
+
+**Harmonisasi & seeder** (`data/alatas/`), 24 tes penjaga. Tiga jebakan dikunci tes karena ketiganya
+salah **tanpa memunculkan galat**: `se2_139` bukan dummy (1=Ya, 3=Tidak — `bool(3)` menyatakan 5.226
+rumah tangga memiliki lahan yang tidak mereka miliki); label diambil dari berkas tanpa `hhid`
+sehingga kesejajaran barisnya harus *dibuktikan*, bukan diandaikan; `CONSUMPTION` bersatuan ribu
+rupiah nominal 2008.
+
+**Mode ablasi `--tanpa-urgensi`.** Data publik tidak punya teks naratif, jadi Tier 2 di atasnya
+adalah ablasi 6 fitur. Ketiadaan fitur dibuat **mustahil lolos diam-diam**: kuncinya dihilangkan
+(bukan diisi nilai netral), himpunan fitur melekat pada header CSV, dan `periksa_skema()` menolak
+artefak 6 fitur melayani pipeline — aplikasi selalu merakit tujuh fitur, dan model enam fitur akan
+menerima vektor bergeser satu posisi tanpa galat apa pun. Penanda ablasi masuk ke **nama versi**,
+bukan cuma metadata.
+
+**Kebocoran label ditangkap sebelum masuk skripsi.** Latihan pertama memberi F1 0,9431 — terlalu
+bagus, jadi diperiksa. Ternyata `poor == (CONSUMPTION < povline_poor)` pada 99,97% baris, sementara
+`data_survei.pendapatan` diisi `CONSUMPTION × 1.000`: **labelnya fungsi dari fiturnya sendiri**.
+Tanpa `pendapatan`, F1 jatuh ke 0,5403. Kelas kesalahan yang sama dengan akurasi 1,0000 di korpus
+augmentasi Fase 2, menyamar dalam bentuk baru.
+
+**Opsi B dipilih: label musyawarah warga** (`ranking_meeting <= quota_final`) — padanan terdekat
+`label_historis` proyek ini, yaitu keputusan MANUSIA, bukan ukuran objektif. Hasilnya angka Tier 2
+pertama yang jujur, dan **untuk pertama kalinya pemilihan model menghasilkan pemenang yang dapat
+dibedakan secara statistik**. Dua varian label tidak dapat tertukar: dibedakan lewat `asal_data`
+(`publik-musy` vs `publik`) sampai ke CSV korpus dan metadata artefak, seeder menolak mencampurnya
+tanpa `--force`, dan default `musyawarah` dikunci tes — default yang salah tidak menggagalkan apa
+pun, ia hanya menghasilkan metrik 0,95 yang tampak hebat lalu masuk skripsi.
+
+Angkanya rendah dan memang seharusnya begitu: recall 0,741 dengan presisi 0,517 berarti separuh
+usulan model perlu verifikasi petugas — persis peran yang dirancang untuk sistem ini (FR-26), bukan
+kegagalan. Dan musyawarah sendiri hanya sepakat 66,3% dengan kemiskinan berbasis konsumsi.
+
 ## 2026-08-09 — Peningkatan UI/UX dashboard (enam tahap, satu commit per tahap)
 
 Lanjutan dari pembenahan visual 08-08, kali ini menyentuh kerangka aplikasi, alur kerja, dan

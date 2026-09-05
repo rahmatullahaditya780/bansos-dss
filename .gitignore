@@ -47,6 +47,7 @@ Thumbs.db
 
 # Korpus terbangkitkan (reproducible dari ml/tier1/corpus.py + seed)
 data/corpus/*.csv
+data/corpus/**/*.csv
 
 # Lembar kerja pelabelan berisi narasi warga (PII) — hanya berkas kalibrasi yang aman di-commit
 progres/fase-1-data-pelabelan/lembar-kerja-pelabelan-*.xlsx
