@@ -28,6 +28,9 @@ terdokumentasi, dan skor kappa antar-pelabel terukur.
 |---|---|
 | `ketentuan-data-dtks-kelurahan.pdf` | Catatan persiapan permintaan data ke kelurahan (OI-09) — **disusun sebelum penolakan 4 Sep; lihat berkas berikut** |
 | `permintaan-data-kelurahan-revisi.md` | **Evaluasi ulang permintaan data** setelah penolakan 4 Sep 2026 (tiga lapisan) |
+| `materi-pertemuan-kelurahan.md` / `.pdf` | **Pegangan pertemuan 7 Sep 2026** — agenda, daftar pertanyaan, lembar catatan hasil. **Jangan diserahkan** |
+| `lampiran-permintaan-data-anonim.md` / `.pdf` | **Diserahkan ke kelurahan** — daftar kolom diminta & yang TIDAK diminta, tiga pilihan penyerahan, pernyataan penanganan data |
+| `lembar-pembobotan-kriteria.md` / `.pdf` | **Diisi petugas** — bobot kriteria (OI-12) + batas nilai keanggotaan (OI-13); satu lembar per petugas |
 | `hasil-publik-musy/` | Metrik & resep reproduksi Tier 2 di data publik, label musyawarah warga |
 | `rubrik-pelabelan-urgensi.md` / `.pdf` | **Rubrik pelabelan urgensi** (OI-11) — panduan kerja pelabel |
 | `protokol-validasi-label-historis.md` / `.pdf` | **Protokol validasi label historis** (OI-10) — panduan sesi bersama petugas |
@@ -42,6 +45,7 @@ Dokumen `.md` dan `.pdf` **dihasilkan** dari skrip — edit konten di berkas `ge
 jalankan ulang. Menyunting `.md` langsung akan tertimpa.
 
 ```powershell
+python progres/fase-1-data-pelabelan/generate_materi_pertemuan.py
 python progres/fase-1-data-pelabelan/generate_rubrik_urgensi.py
 python progres/fase-1-data-pelabelan/generate_protokol_label_historis.py
 python progres/fase-1-data-pelabelan/uji_silang_rubrik.py

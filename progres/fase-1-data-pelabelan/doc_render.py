@@ -330,9 +330,15 @@ class _Renderer:
         for k, v in dok.meta:
             pdf.set_x(pdf.l_margin)
             pdf.set_font("Helvetica", "B", 10)
-            pdf.cell(38, 6, s(k))
+            # Lebar label 38 mm adalah nilai bawaan, BUKAN batas keras: `cell()` tidak memotong
+            # maupun melipat teks yang lebih panjang, sehingga label panjang tertimpa nilainya
+            # tanpa galat apa pun. Terbukti pada baris "Lama menangani penyaluran bantuan"
+            # (lembar pembobotan, 5 September 2026). Label pendek tetap 38 mm, jadi tata letak
+            # dokumen yang sudah ada tidak berubah sedikit pun.
+            w_label = max(38.0, pdf.get_string_width(s(k)) + 2)
+            pdf.cell(w_label, 6, s(k))
             pdf.set_font("Helvetica", "", 10)
-            pdf.multi_cell(self.epw - 38, 6, s(": " + v), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(self.epw - w_label, 6, s(": " + v), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(3)
         if dok.intro:
             self.para(dok.intro)
